@@ -167,9 +167,11 @@ function setupChart(ctx, range) {
     }
 
     function getMax(numArray) {
+        if (numArray.length === 0) return 0;
         return Math.max.apply(null, numArray);
     }
     function getMin(numArray) {
+        if (numArray.length === 0) return 0;
         return Math.min.apply(null, numArray);
     }
     function getSum() {

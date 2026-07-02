@@ -52,12 +52,12 @@ function collectWritePageInfo() {
 
 // 업로드된 이미지를 에디터에 첨부 (page world — 페이지의 Editor 객체 사용)
 function attachUploadedImage(mockdata) {
-  const execAttach = window.Editor.getSidebar().getAttacher(
-    'image',
-    window,
-  ).attachHandler;
+  const sidebar = window.Editor?.getSidebar?.();
+  const execAttach = sidebar?.getAttacher?.('image', window)?.attachHandler;
+  if (typeof execAttach !== 'function') return false;
   execAttach(mockdata);
   document.getElementById('subject')?.focus();
+  return true;
 }
 
 async function autoInsertImage(details) {
@@ -68,10 +68,16 @@ async function autoInsertImage(details) {
     await chrome.storage.local.get('autoInsertImageData');
   if (!data || !data.filename || !data.filetype || !data.filebyte) return;
 
-  const [injection] = await chrome.scripting.executeScript({
-    target: { tabId: details.tabId },
-    func: collectWritePageInfo,
-  });
+  let injection;
+  try {
+    [injection] = await chrome.scripting.executeScript({
+      target: { tabId: details.tabId },
+      func: collectWritePageInfo,
+    });
+  } catch (e) {
+    console.log('Write page inspection failed.', e);
+    return;
+  }
   const pageInfo = injection?.result;
   if (!pageInfo?.rKey || !pageInfo?.gallId) return;
 
@@ -87,9 +93,13 @@ async function autoInsertImage(details) {
       body: formData,
       credentials: 'include',
     });
-    uploaded = (await res.json()).files[0];
+    uploaded = (await res.json())?.files?.[0];
   } catch (e) {
     console.log('Image transfer failed.', e);
+    return;
+  }
+  if (!uploaded) {
+    console.log('Image transfer failed: empty upload response.');
     return;
   }
 
@@ -98,23 +108,31 @@ async function autoInsertImage(details) {
     if (key.includes('web') && key.includes('url')) imageUrl = uploaded[key];
   }
   if (imageUrl == null) imageUrl = uploaded.url;
+  if (!imageUrl) {
+    console.log('Image transfer failed: uploaded image URL is missing.');
+    return;
+  }
 
-  await chrome.scripting.executeScript({
-    target: { tabId: details.tabId },
-    world: 'MAIN',
-    func: attachUploadedImage,
-    args: [
-      {
-        imageurl: imageUrl,
-        filename: uploaded.name,
-        filesize: uploaded.size,
-        imagealign: 'L',
-        originalurl: uploaded.url,
-        thumburl: uploaded._s_url,
-        file_temp_no: uploaded.file_temp_no,
-      },
-    ],
-  });
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: details.tabId },
+      world: 'MAIN',
+      func: attachUploadedImage,
+      args: [
+        {
+          imageurl: imageUrl,
+          filename: uploaded.name,
+          filesize: uploaded.size,
+          imagealign: 'L',
+          originalurl: uploaded.url,
+          thumburl: uploaded._s_url,
+          file_temp_no: uploaded.file_temp_no,
+        },
+      ],
+    });
+  } catch (e) {
+    console.log('Image attach failed.', e);
+  }
 }
 
 export default defineBackground(() => {
@@ -194,7 +212,9 @@ export default defineBackground(() => {
   chrome.webNavigation.onDOMContentLoaded.addListener(
     (details) => {
       if (details.frameId !== 0) return;
-      autoInsertImage(details);
+      autoInsertImage(details).catch((e) => {
+        console.log('Auto image insertion failed.', e);
+      });
     },
     { url: [{ urlMatches: 'gall.dcinside.com(/mgallery)?/board/write/' }] },
   );

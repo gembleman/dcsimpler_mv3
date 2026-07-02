@@ -57,9 +57,11 @@ let contentBlock = {
     toContent : function (effect) {
         let that = this;
         if(config.blacklist === false) return false;
-        [ ...document.querySelector('tbody').querySelectorAll('.ub-content') ].map(function (article) {
+        const tbody = document.querySelector('tbody');
+        if (!tbody) return false;
+        [ ...tbody.querySelectorAll('.ub-content') ].map(function (article) {
             let [ ubWriter, ubWord ]  = [ article.querySelector('.ub-writer'), article.querySelector('.ub-word') ];
-            if (!ubWriter || !ubWriter) return false;
+            if (!ubWriter || !ubWord) return false;
             let contentBlockReason = undefined;
             let writerIP, writerID, writerNickName, contentText;
             let gallNum, gallSubject;
@@ -71,7 +73,7 @@ let contentBlock = {
             gallNum = article.querySelector('.gall_num');
             gallSubject = article.querySelector('.gall_subject');
 
-            let isCurrentArticle = gallNum.innerHTML.indexOf("class=\"sp_img crt_icon\"") === -1;
+            let isCurrentArticle = !gallNum || gallNum.innerHTML.indexOf("class=\"sp_img crt_icon\"") === -1;
 
             let noticeBlock = config.blacklist_notice === true;
 
@@ -111,7 +113,7 @@ let contentBlock = {
         let reference = location.calltype === "lists" ? document.querySelector('#dcs_iframe').contentWindow.document.body : document.body;
         [ ...reference.querySelectorAll('.view_comment li[class^=ub-content]') ].map(function (comment) {
             let [ ubWriter, ubWord ] = [ comment.querySelector('.ub-writer'), comment.querySelector('.ub-word') ];
-            if (!ubWriter || !ubWriter) return false;
+            if (!ubWriter || !ubWord) return false;
             let contentBlockReason = undefined;
             let writerIP, writerID, writerNickName, commentText;
 
@@ -120,13 +122,13 @@ let contentBlock = {
             writerNickName = ubWriter.getAttribute('data-nick');
             commentText = ubWord !== null ? ubWord.innerText : undefined;
 
-            if (writerIP.match(filter.blacklist['ip'])) {
+            if (writerIP && writerIP.match(filter.blacklist['ip'])) {
                 contentBlockReason = 'ip';
             }
-            else if (writerID.match(filter.blacklist['id'])) {
+            else if (writerID && writerID.match(filter.blacklist['id'])) {
                 contentBlockReason = 'id';
             }
-            else if (writerNickName.match(filter.blacklist['nickname'])) {
+            else if (writerNickName && writerNickName.match(filter.blacklist['nickname'])) {
                 contentBlockReason = 'nickname';
             }
             else if (commentText !== undefined && commentText.match(filter.blacklist['keyword'])) {
@@ -294,7 +296,7 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
                 $('#dcs_iframe').off('load');
                 if( ctr < 10 ) {
                     $('#dcs_iframe').attr('src', '');
-                    setTimeout(f(), 1000);
+                    setTimeout(f, 1000);
                     return 0;
                 } else {
                     console.warn('---------------');
@@ -574,7 +576,12 @@ app = {};
 app.requestConfig = function () {
     return new Promise ( function (resolve, reject) {
         chrome.runtime.sendMessage({flag: "request"}, function(response) {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+                return;
+            }
             if(response) resolve(response);
+            else reject(new Error('Config response is empty'));
         });
     })
 }
@@ -604,10 +611,15 @@ app.pruningUrl = () => {
     o.pathname = parsePathname(location.pathname).reverse();
     o.query = parseQuery(location.search);
     o.url = {};
-    o.url.regular = location.href.replace('&exception_mode=recommend', '').replace(/page=./, '').replace(/&$/, '');
-    o.url.goNormal = o.url.regular + "&page=1";
-    o.url.goRecommend = o.url.regular + "&page=1&exception_mode=recommend";
-    o.url.goNotice = o.url.regular + "&page=1&exception_mode=notice";
+    const url = new URL(location.href);
+    url.searchParams.delete('page');
+    url.searchParams.delete('exception_mode');
+    url.hash = '';
+    o.url.regular = url.toString().replace(/\?$/, '');
+    const queryGlue = o.url.regular.includes('?') ? '&' : '?';
+    o.url.goNormal = o.url.regular + queryGlue + "page=1";
+    o.url.goRecommend = o.url.regular + queryGlue + "page=1&exception_mode=recommend";
+    o.url.goNotice = o.url.regular + queryGlue + "page=1&exception_mode=notice";
     return o;
 
     function parseLocation(location, sperator) {
@@ -623,14 +635,10 @@ app.pruningUrl = () => {
     }
 
     function parseQuery(str) {
-        str = str.substr(str.indexOf("?")+1);
-        str = str.split("&");
         let query = {};
-        let split;
-        for(let i=0,l=str.length ; i<l ; i+=1) {
-            split = str[i].split("=");
-            query[split[0]] = split[1];
-        }
+        new URLSearchParams(str.replace(/^\?/, '')).forEach(function (value, key) {
+            query[key] = value;
+        });
         return query;
     }
 };
@@ -669,10 +677,11 @@ let manipulateDOM = {
 
         function newBtnButton (isMoveTop) {
             let p = "";
-            let isE = !!location.dcs.query["exception_mode"];
+            let exceptionMode = location.dcs.query["exception_mode"];
+            let isE = !!exceptionMode;
             p += `<button type="button" name="button" class="btn_normal ${isE? "" : "on"}" tag="${isMoveTop}">전체글</button>`;
-            p += `<button type="button" name="button" class="btn_recommend ${isE? "on" : "" }" tag="${isMoveTop}">개념글</button>`;
-            p += `<button type="button" name="button" class="btn_notice ${!!location.dcs.query["exception_mode=notice"]? "on" : "" }" tag="${isMoveTop}">공지</button>`;
+            p += `<button type="button" name="button" class="btn_recommend ${exceptionMode === "recommend"? "on" : "" }" tag="${isMoveTop}">개념글</button>`;
+            p += `<button type="button" name="button" class="btn_notice ${exceptionMode === "notice"? "on" : "" }" tag="${isMoveTop}">공지</button>`;
             p += `<button type="button" name="button" class="btn_config">설정</button>`;
             return p;
         }
@@ -1085,12 +1094,15 @@ main = function () {
         return exitMain();
     }
 
-    app.requestConfig().then(function (data) {
+    const configReady = app.requestConfig().then(function (data) {
         config = data;
         filter.blacklist = contentBlock.convert(data.blacklist_filter);
         filter.usermemo = contentMemo.convert(data.userMemo_filter);
+    }).catch(function (error) {
+        console.warn('Failed to load DCSimpler config.', error);
     });
-    document.addEventListener("DOMContentLoaded", function() {
+
+    const onReady = async function() {
         window.dcs = 3;
         if(!document.body)
             return exitMain();  //avoiding redirect error
@@ -1100,6 +1112,7 @@ main = function () {
             window.location.reload();
             return exitMain();
         }
+        await configReady;
         if(config === undefined) {
             alert('설정파일을 가져오는 데 실패하였거나, 로컬 스토리지를 사용할 수 없는 상태입니다.');
             return exitMain();
@@ -1113,7 +1126,21 @@ main = function () {
         }
 
         return true;
-    });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener("DOMContentLoaded", function() {
+            onReady().catch(function (error) {
+                console.error(error);
+                exitMain();
+            });
+        });
+    } else {
+        onReady().catch(function (error) {
+            console.error(error);
+            exitMain();
+        });
+    }
 };
 
 // Alt+S(글 등록) — MV3에서는 background가 코드 문자열을 주입할 수 없어
