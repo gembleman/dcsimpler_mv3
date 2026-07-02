@@ -26,7 +26,22 @@ export default defineConfig({
     author: 'vwvw',
     // 확장 ID 고정용 (웹스토어 ID: kgpiejjjpjkcijopeabfleliifbhfnci)
     key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn6eBCDQsVf8MNTfQMzFux65Q9OS7cci8crLgWJpR/8zJ5RHT6WNQ2Ko/qwf5dlIwfhTxAzqOKXgHMzxFtds5zlgKw0fiAaaOymaivsyPA57g2hX3Eft61MjCAt2m9kTKOhyAyynNHDGRSQ1gul+8tIb5cK2PpK05B636ePM0cQN/iGmDTcUHuJ+V7coNfBJ47SABO79F/NuQe2lELGrNmtX69AXj7Yv1tBiOfDzAhyMa+q+hijkIhCQEVyvQUJeg/1yD2R/3bHWCJLBnVhzQ72gGl7pke+mvNBQ5pYUiMRFY+2LNJqgObD3PagaSNNxnKILuy9/B0FQ8Txu2UJOSkwIDAQAB',
-    permissions: ['storage', 'scripting', 'activeTab', 'webNavigation'],
+    permissions: [
+      'storage',
+      'scripting',
+      'activeTab',
+      'webNavigation',
+      'declarativeNetRequest',
+    ],
+    declarative_net_request: {
+      rule_resources: [
+        {
+          id: 'static_rules',
+          enabled: true,
+          path: 'rules.json',
+        },
+      ],
+    },
     host_permissions: [
       'https://gall.dcinside.com/*',
       'https://sites.google.com/view/dcsimpler/*',

@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||ir.joins.com",
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "stylesheet",
+        "script",
+        "image",
+        "font",
+        "object",
+        "xmlhttprequest",
+        "ping",
+        "csp_report",
+        "media",
+        "websocket",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        { "header": "content-security-policy", "operation": "remove" },
+        { "header": "x-frame-options", "operation": "remove" },
+        { "header": "x-content-security-options", "operation": "remove" },
+        { "header": "x-webkit-csp", "operation": "remove" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||gall.dcinside.com",
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  }
+]
