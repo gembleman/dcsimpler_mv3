@@ -387,10 +387,14 @@ var testfield = function (obj) {
 
 
 
+// MV3: 응답 헤더(CSP 등) 제거는 declarativeNetRequest 정적 규칙으로 대체됨.
+// MV2 호환용 코드 — webRequest 권한이 없는 환경에서는 동작하지 않는다.
 var HEADERS_TO_STRIP_LOWERCASE = [ 'conte'+'nt-security-policy', 'x-fram'+'e-options', 'x-cont'+'ent-security-options','x-web'+'kit-csp' ];
-chrome.webRequest.onHeadersReceived.addListener(function(details) {
-    return { responseHeaders: details.responseHeaders.filter(function(header) { return HEADERS_TO_STRIP_LOWERCASE.indexOf(header.name.toLowerCase()) < 0; })};
-}, {urls: ["<all_urls>"]}, ["blocking", "responseHeaders"]);
+if (chrome.webRequest && chrome.webRequest.onHeadersReceived) {
+    chrome.webRequest.onHeadersReceived.addListener(function(details) {
+        return { responseHeaders: details.responseHeaders.filter(function(header) { return HEADERS_TO_STRIP_LOWERCASE.indexOf(header.name.toLowerCase()) < 0; })};
+    }, {urls: ["<all_urls>"]}, ["blocking", "responseHeaders"]);
+}
 
 $(document).ready(function () {
     config = new LS().get("config").print().value;

@@ -647,7 +647,7 @@ let manipulateDOM = {
         $(document).on('click', '.btn_recommend', arraytabListener);
         $(document).on('click', '.btn_notice', arraytabListener);
         $(document).on('click', '.btn_config', function () {
-            window.open('chrome-extension://'+chrome.runtime.id+'/html/config.html', '_blank');
+            chrome.runtime.sendMessage({flag: 'openConfig'});
         });
 
         function arraytabListener (event) {
@@ -725,7 +725,7 @@ let manipulateDOM = {
             $('#opt-slideMenu').toggle();
             switch (evt.target.id) {
                 case 'login' : {window.location.href = $('.btn_top_loginout').attr('href');break;}
-                case 'config' : {window.open('chrome-extension://'+chrome.runtime.id+'/html/config.html', '_blank');break;}
+                case 'config' : {chrome.runtime.sendMessage({flag: 'openConfig'});break;}
             }
         });
         // navigator >> rightPanelControl button
@@ -1116,4 +1116,6 @@ main = function () {
     });
 };
 
-main();
+export function startDcsimpler() {
+    main();
+}

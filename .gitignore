@@ -15,6 +15,10 @@ _metadata/
 dist/
 build/
 
+# WXT
+.wxt/
+.output/
+
 # 로그
 *.log
 npm-debug.log*
