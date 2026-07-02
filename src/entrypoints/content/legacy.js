@@ -1116,6 +1116,20 @@ main = function () {
     });
 };
 
+// Alt+S(글 등록) — MV3에서는 background가 코드 문자열을 주입할 수 없어
+// 커맨드를 메시지로 받아 content script에서 처리한다
+function bindCommandListener() {
+    chrome.runtime.onMessage.addListener(function (request) {
+        if (!request || request.flag !== 'command:write') return;
+        $('#container').trigger('mousedown');
+        $('#container').trigger('click');
+        $('#subject').trigger('mousedown');
+        $('form:first').trigger('click');
+        $('.btn_blue.btn_svc.write, .btn_blue.write').trigger('click');
+    });
+}
+
 export function startDcsimpler() {
+    bindCommandListener();
     main();
 }
