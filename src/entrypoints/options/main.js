@@ -420,7 +420,7 @@ function bindOptionHandlers(charts) {
         const element = $('.box.child.blacklist, textarea.blacklist.'+d);
         value = value.replace(/[\n\r]+/g, '|');
         console.log(value);
-        if(value[value.length-1] === '|') { value = value.slice(0,value.length-2)}
+        if(value[value.length-1] === '|') { value = value.slice(0,value.length-1)}
 
         if( value.length === 0 ) {
             config.blacklist_filter[d] = 'a^';
@@ -453,7 +453,7 @@ function bindOptionHandlers(charts) {
         }
     });
 
-    $(document).on('click', '.saveText.userMemo', async function () {
+    $(document).on('click', '.saveText.userMemo.save', async function () {
         const textArea = $('.editText.userMemo');
         const z = $('.box.child.userMemo, .editText.userMemo');
         z.css('color', 'inherit');
@@ -464,11 +464,59 @@ function bindOptionHandlers(charts) {
 
     $(document).on('keydown', 'textarea.userMemo', function(event){
         if(event.keyCode === 13 && event.shiftKey){
-            const tag = '.'+this.classList[1];
             $('.saveText.userMemo.save').trigger('click');
             event.preventDefault();
             event.stopPropagation();
         }
+    });
+
+    // 내보내기/가져오기 — 버튼이 속한 섹션(.smallbox 또는 .box.child)의 textarea를 대상으로 한다.
+    function findSectionTextarea(button) {
+        const section = button.closest('.smallbox') || button.closest('.box.child');
+        return section ? section.querySelector('textarea') : null;
+    }
+    function exportFilename(textarea) {
+        // 예: "editText blacklist ip" → "dcsimpler-blacklist-ip.txt"
+        const classes = Array.from(textarea.classList).filter(function (c) { return c !== 'editText'; });
+        const suffix = classes.length ? classes.join('-') : 'filter';
+        return 'dcsimpler-' + suffix + '.txt';
+    }
+
+    $(document).on('click', '.saveText.export', function () {
+        const textarea = findSectionTextarea(this);
+        if (!textarea) return;
+        const blob = new Blob([textarea.value], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = exportFilename(textarea);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    });
+
+    $(document).on('click', '.saveText.import', function () {
+        const textarea = findSectionTextarea(this);
+        if (!textarea) return;
+        const picker = document.createElement('input');
+        picker.type = 'file';
+        picker.accept = '.txt,text/plain';
+        picker.addEventListener('change', function () {
+            const file = picker.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function () {
+                textarea.value = String(reader.result).replace(/\r\n/g, '\n');
+                $(textarea).trigger('input'); // 라인번호·높이 갱신
+                flashOk(textarea);
+            };
+            reader.onerror = function () {
+                alert('파일을 불러오지 못했습니다.');
+            };
+            reader.readAsText(file);
+        });
+        picker.click();
     });
 
     document.addEventListener('change', async function (event) {
@@ -526,21 +574,33 @@ function bindOptionHandlers(charts) {
     });
 
     document.querySelector('#upload-image').addEventListener('change', function (event) {
-        console.log('onchange');
         const file = event.target.files[0];
+        if (!file) return;
+
+        // data URL(base64)은 원본보다 약 33% 크고, chrome.storage.local의
+        // 기본 용량(약 10MB)을 넘으면 set()이 조용히 실패한다. 미리 검증한다.
+        const MAX_IMAGE_BYTES = 7 * 1024 * 1024; // 원본 7MB → data URL 약 9.3MB
+        if (file.size > MAX_IMAGE_BYTES) {
+            alert('이미지 용량이 너무 큽니다. 7MB 이하 파일을 사용해주세요.');
+            event.target.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         const imageData = {};
         reader.onload = async function(event) {
-            console.log(event.target.result);
             imageData.filebyte = event.target.result;
             imageData.filetype = file.type;
             imageData.filename = file.name;
-            await chrome.storage.local.set({ autoInsertImageData: imageData });
-            document.querySelector('.image-name').innerHTML = file.name;
+            try {
+                await chrome.storage.local.set({ autoInsertImageData: imageData });
+                document.querySelector('.image-name').innerHTML = file.name;
+            } catch (e) {
+                console.error(e);
+                alert('이미지를 저장하지 못했습니다. 파일 용량을 줄여 다시 시도해주세요.');
+            }
         };
-        if (file) {
-            reader.readAsDataURL(file);
-        }
+        reader.readAsDataURL(file);
     });
 
     const recreateCharts = async function () {

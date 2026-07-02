@@ -7,7 +7,7 @@ function fetching (url, controller){
     return response.then(res => res);
 }
 function exitMain () {
-    return alert('idk but occur error');
+    console.warn('DCSimpler: 초기화를 중단합니다.');
 }
 function insertAfter(newNode, existingNode) {
     existingNode.parentNode.insertBefore(newNode, existingNode.nextSibling);
@@ -179,7 +179,7 @@ let contentMemo = {
             var ip = writer.attr('data-ip');
             var match = filter.usermemo.ip.indexOf(ip);
             if(match === -1) return;
-            $(writer).attr('title', filter.usermemo.ip[match]);
+            $(writer).attr('title', ip);
             $(writer).children('.ip').html('('+filter.usermemo.tag[match]+')');
         })
     },
@@ -193,7 +193,7 @@ let contentMemo = {
 
             if( writer.length > 0 ){
                 if (match !== -1){
-                    $(writer).attr('title', filter.usermemo.ip[match]);
+                    $(writer).attr('title', ip);
                     $(writer).find('.ip').html('('+filter.usermemo.tag[match]+')');
                 }
             }
@@ -305,8 +305,7 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
             }
 
             // keybinding in iframe
-            $(document.getElementById('dcs_iframe').contentWindow.document).keydown(function(){
-                var divLoc = iframeRoot.find('.cmt_write').offset();
+            $(document.getElementById('dcs_iframe').contentWindow.document).keydown(function(event){
                 var onTextarea = $(event.target).is("input, textarea");
                 var withoutCtrlKey = !event.ctrlKey;
 
@@ -390,11 +389,13 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
 function keywordHighlighting() {
     let keyword = $('input:hidden[name=s_keyword]').val();
     if (keyword && keyword != "" && keyword != "null") {
+        let escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let keywordRegex = new RegExp(escapedKeyword);
         $('.gall_tit').each(function(){
             let tmp_subject = $('a:first-child', this).clone();
             $('.icon_img', tmp_subject).remove();
             tmp_subject = $(tmp_subject).html();
-            if (tmp_subject.match(keyword)) {
+            if (tmp_subject.match(keywordRegex)) {
                 var subject = tmp_subject.replace(keyword, '<span class="mark">'+ keyword +'</span>');
                 subject = $('a:first-child', this).html().replace(tmp_subject, subject);
                 $('a:first-child', this).html(subject);
@@ -596,7 +597,9 @@ app.getScripts = function (filenames) {
     }
 }
 app.sendToBackground = function (msg) {
-    chrome.runtime.sendMessage({flag: msg, id: location.dcs.query.id, name: document.title}, function(response) {});
+    chrome.runtime.sendMessage({flag: msg, id: location.dcs.query.id, name: document.title}, function(response) {
+        if (chrome.runtime.lastError) return;
+    });
 }
 
 app.pruningUrl = () => {
@@ -791,9 +794,13 @@ let manipulateDOM = {
         };
 
         if(config.addRightSideVisitHistory === false) return false;
-        let latelyGallery = JSON.parse(localStorage.lately_gallery);
-
-        console.log(latelyGallery);
+        let latelyGallery;
+        try {
+            latelyGallery = JSON.parse(localStorage.lately_gallery);
+        } catch (e) {
+            latelyGallery = [];
+        }
+        if (!Array.isArray(latelyGallery)) latelyGallery = [];
         insertAfter(strToNode(visitHistoryHTML(latelyGallery)), document.querySelector('#login_box'));
 
         document.querySelector('#dcs_visit_history').addEventListener('click', function (event) {
@@ -911,7 +918,9 @@ let manipulateDOM = {
         });
     },
     observeComment: () => {
-        observed(document.querySelector('.view_comment'));
+        const commentRoot = document.querySelector('.view_comment');
+        if (!commentRoot) return;
+        observed(commentRoot);
         function observed(selector) {            //test-20191212
             let mo = new MutationObserver(process);
             mo.observe(selector, {subtree: true, childList:true, attributeOldValue: true, attributes: true});

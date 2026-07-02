@@ -166,7 +166,12 @@ export default defineBackground(() => {
       return false;
     }
     if (STAT_FLAGS.includes(request.flag)) {
-      increaseStat(request).then(() => sendResponse({ baz: 'success' }));
+      increaseStat(request)
+        .then(() => sendResponse({ baz: 'success' }))
+        .catch((e) => {
+          console.log('Stat update failed.', e);
+          sendResponse({ baz: 'fail' });
+        });
       return true;
     }
     return false;

@@ -33,6 +33,8 @@ export async function pruneHistory(range = 30) {
 
 /** view/write/reply 카운트 증가 (구 egypt.increase2). */
 export async function increaseStat({ id, name, flag }) {
+  // 갤러리 id를 못 읽은 페이지의 요청은 무시한다 (history[...]["undefined"] 누적 방지).
+  if (id == null || id === '' || id === 'undefined') return;
   const { history = {} } = await chrome.storage.local.get('history');
   const today = todayKey();
   if (!history[today]) history[today] = {};
