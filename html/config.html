@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="../icon/dc.png" type="image/x-icon">
+    <link rel="shortcut icon" href="../icon/dc.png" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css?family=Noto+Sans+KR:100,300&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Ubuntu:700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Bree+Serif&display=swap" rel="stylesheet">
+    <!--<link href="https://fonts.googleapis.com/css?family=Noto+Sans+KR:100" rel="stylesheet">-->
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nanum+Gothic+Coding" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Squada+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <title>설정페이지</title>
+    <link href="../css/bootstrap.css" rel="stylesheet">
+    <link href="../css/bootstrap-switch.css" rel="stylesheet">
+    <link href="../css/config.css" rel="stylesheet">
+    <link href="../css/tln.css" rel="stylesheet">
+    <script src="/lib/bootstrap/jqueryforBootstrap.js"></script>
+    <script src="/lib/jQuery/jquery-ui.js"></script>
+    <script src="/lib/bootstrap/bootstrap.js"></script>
+    <script src="/lib/bootstrap/bootstrap-switch.js"></script>
+    <script src="/lib/chartJS/Chart.min.js"></script>
+    <script src="/js/lsmm.js"></script>
+    <script src="/js/egyptian.js"></script>
+    <script src="/js/config.js"></script>
+    <script src="/lib/tln/tln.js"></script>
+</head>
+<body>
+<div id="bg"></div>
+<div id="top">
+    <h2 style="font-weight: bold;">DCSimpler</h2>
+    <p>more easier dcinside</p>
+</div>
+
+<div id="upper">
+    <div id="upper-menu">
+        <div class="item clicked" index="0"><i class="fas fa-sliders-h"></i><span>기본설정</span></div>
+        <div class="item" index="7"><i class="fas fa-magic"></i><span>레이아웃</span></div>
+        <div class="item" index="6"><i class="fas fa-ban"></i><span>차단 필터</span></div>
+        <div class="item" index="8"><i class="fas fa-filter"></i><span>메모 필터</span></div>
+        <div class="item" index="1"><i class="fas fa-flask" style="transform: rotate( -45deg );"></i><span>실험실</span><p style="display: initial ;color: #337ab7;font-size: 13px; margin-bottom:10px !important;">BETA</p></div>
+        <div class="item" index="2"><i class="fas fa-chart-pie"></i><span>사용통계</span><p style="display: initial ;color: #337ab7;font-size: 13px; margin-bottom:10px !important;">BETA</p></div>
+        <div class="item" index="3"><i class="far fa-question-circle"></i><span>도움말</span></div>
+        <div class="item" index="4" pageMove="true"><i class="fas fa-bug"></i><span>버그제보</span></div>
+        <div class="item" index="5"><i class="fas fa-fingerprint"></i><span>프로그램 정보</span></div>
+
+
+    </div>
+
+    <div id="upper-inner">
+
+        <div class="menu-container" index="0" tag="기본설정">
+
+            <div class ="box">
+                <div class="box-title"> <h2>레이아웃 최소화</h2> <p style="font-size: 16px">글 목록 외의 레이아웃을 최소화합니다</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" t="minimizeLayout" ></div>
+            </div>
+
+            <div class ="box">
+                <div class="box-title"> <h2>바로 글 보기</h2> <p style="font-size: 16px">글 목록에서 페이지 이동 없이 게시물을 열람합니다</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" t="directView"></div>
+            </div>
+
+            <div class ="box">
+                <div class="box-title"> <h2>사용자 차단</h2> <p style="font-size: 16px">차단 필터를 이용해 게시물 및 댓글을 목록에서 제외합니다</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" t="blacklist" haveChildren="true"></div>
+            </div>
+
+            <div class ="box child">
+
+                <div class ="smallbox">
+                    <div class="box-title"> <h3>차단된 게시글 표시</h3> <p style="font-size: 16px">차단된 게시글이 회색으로 표시됩니다</p></div>
+                    <div class="box-toggler"> <input type="checkbox" class="toggler" t="blacklist_view"></div>
+                </div>
+
+                <div class ="smallbox">
+                    <div class="box-title"> <h3>갤러리 공지 차단</h3> <p style="font-size: 16px">갤러리 별 공지 게시물을 차단합니다</p></div>
+                    <div class="box-toggler"> <input type="checkbox" class="toggler" t="blacklist_notice"></div>
+                </div>
+
+                <!--<div class ="smallbox">-->
+                <!--<div class="textBox" id="nickname">-->
+                <!--닉네임-->
+                <!--<input class="editText" id="nickname" tag="blacklist" placeholder="토게|^유골함$" spellcheck="false" required>-->
+                <!--<input class="saveText "id="nickname" tag="blacklist" value="저장" type="submit">-->
+                <!--</div>-->
+
+                <!--<div class="textBox" id="id">-->
+                <!--아이디-->
+                <!--<input class="editText" id="id" tag="blacklist" placeholder="^ㅇㅇ$" spellcheck="false" required>-->
+                <!--<input class="saveText "id="id" tag="blacklist" value="저장" type="submit">-->
+                <!--</div>-->
+
+                <!--<div class="textBox" id="ip">-->
+                <!--아이피-->
+                <!--<input class="editText" id="ip" tag="blacklist" placeholder="321.173|173\." spellcheck="false" required>-->
+                <!--<input class="saveText "id="ip" tag="blacklist" value="저장" type="submit">-->
+                <!--</div>-->
+
+                <!--<div class="textBox" id="keyword">-->
+                <!--키워드-->
+                <!--<input class="editText" id="keyword" tag="blacklist" placeholder="윤서인|정준하" spellcheck="false" required>-->
+                <!--<input class="saveText "id="keyword" tag="blacklist" value="저장" type="submit">-->
+                <!--</div>-->
+                <!--</div>-->
+            </div>
+
+            <div class ="box" id="option7">
+                <div class="box-title"> <h2>사용자 메모</h2> <p style="font-size: 16px">메모 필터를 바탕으로 사용자 메모를 표시합니다</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler7" t="userMemo" ></div>
+            </div>
+
+            <!--<div class ="box child">-->
+            <!--<div class ="smallbox">-->
+            <!--<div class="textBox" id="userMemo">-->
+
+            <!--<textarea class="editText" id="userMemo" tag="userMemo" placeholder="203.226-SK&#13;&#10;203.236-SK&#13;&#10;..." spellcheck="false" rows="3"></textarea>-->
+            <!--<input class="saveText "id="userMemo" tag="userMemo" value="저장" type="submit" style="vertical-align: top">-->
+            <!--<div class="subtitle"><em>IP-memo</em>의 형태로 작성합니다. 줄내림(ENTER, \n)으로 사용자를 구분하며 공앱과 호환됩니다</div>-->
+            <!--</div>-->
+            <!--</div>-->
+            <!--</div>-->
+
+
+            <div class ="box">
+
+                <div class="box-title"> <h2>고정짤방 사용</h2> <p style="font-size: 16px">글작성 시 자동으로 고정짤방을 추가합니다 (실험중)</p></div>
+                <!--<div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler3" t="autoZzal" haveChildren="true"></div>-->
+                <div class="box-toggler" > <input type="checkbox" class="toggler" t="autoInsertImage" haveChildren="true"></div>
+            </div>
+            <div class="box child">
+                <div class="smallbox">
+                    <div class="box-title"> <h3>이미지 업로드</h3> <p class="image-name" style="font-size: 16px">-</p></div>
+                    <div class="saveText color-blue upload-image-delegator">업로드</div>
+                    <div class="saveText color-blue upload-image-deletor">삭제</div>
+                    <input type="file" style="display : none" id="upload-image" class="saveText color-blue" accept="image/*" style="width: 100px;float: right; margin: -65px 20px 30px 0;"></input>
+
+                </div>
+            </div>
+
+
+
+
+        </div>
+
+        <div class="menu-container" index='1' tag="실험실">
+
+
+            <div class ="box">
+                <div class="box-title"> <h2>짤방 감추기</h2> <p style="font-size: 16px">자동으로 짤방을 감추고 사용자가 클릭하는 경우에만 보여집니다</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" t="blurImage"></div>
+            </div>
+            <div class ="box" id="option4">
+                <div class="box-title"> <h2>엑박 자동 새로고침</h2> <p style="font-size: 16px;">서버 문제로 엑박이 뜨는 경우 자동으로 갱신합니다 왠만하면 쓰지마샘</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" t="autoRefreshImage"></div>
+            </div>
+
+
+        </div>
+        <div class="menu-container" index='2' tag="사용통계">
+
+            <div class="box">
+                <div class="box-title" style="display: none;"><h2>최근 1주간 통계</h2></div>
+                <div class="chartWrap" style="width: 800px; height: 400px; margin-bottom: 50px; display: none;">
+                    <canvas id="weekly-chart" width="800" height="400">weekly-chart</canvas>
+                </div>
+
+                <div class="box-title"><h2>날짜별 통계</h2></div>
+                <div class="chartWrap" style="width: 800px; height: 400px; margin-top:30px">
+                    <canvas id="monthly-chart" width="800" height="400">monthly-chart</canvas>
+                </div>
+            </div>
+            <div class="box">
+
+
+                <div class="box-title" style="margin-top:50px; margin-bottom: 30px;"><h2>갤러리별 통계</h2></div>
+                <div class="box-detail summary">
+                    <div class="view-box">
+                        <div class="view-box-part-wrap big">
+                            <div class="view-box-part big">
+                                <div class="view-box-part-title big">뷰 합계</div>
+                                <div class="view-box-part-detail big view">N/A</div>
+                            </div>
+                        </div>
+                        <div class="view-box-part-wrap small">
+                            <div class="view-box-part small">
+                                <div class="view-box-part-title small">글 합계</div>
+                                <div class="view-box-part-detail small write">N/A</div>
+                            </div>
+                            <div class="view-box-part small">
+                                <div class="view-box-part-title small">댓글 합계</div>
+                                <div class="view-box-part-detail small reply">N/A</div>
+                            </div>
+                        </div>
+
+
+                    </div>
+                    <div class="view-box">
+                        <div class="chartWrap" style="width: 400px; height: 350px; margin-bottom: 50px;">
+                            <canvas id="doughnut-chart" width="400" height="350">doughnut-chart</canvas>
+                        </div>
+                    </div>
+
+
+
+
+                </div>
+                <div class="tooltipText" style="margin-bottom: 30px;">
+                    <div class="" style="font-size: 16px;">· 통계는 오늘날짜로부터 이전 30일까지의 기록을 보관합니다.</div>
+                </div>
+
+                <div class="smallbox" id="statistics_option">
+                    <button class="so-button" id="so-refresh">새로고침</button>
+                    <button class="so-button" id="so-clear" >기록삭제</button>
+                </div>
+                <!--<h2>최근 1 주간 통계</h2>-->
+                <!--<div class="chartWrap" style="width: 700px; height: 400px;">-->
+                <!--<canvas id="weekly-chart" width="700" height="400"></canvas>-->
+                <!--</div>-->
+
+
+
+
+                <div class ="smallbox" style="display: none;">
+                    <div class="box-title">
+                        <div class="row1" id="recordGallery" style="display: flex;">
+                            <h2>갤러리 별 통계</h2>
+                            <p style="font-size: 16px"></p>
+                        </div>
+                    </div>
+
+                    <div class="nw" id="viewS"></div>
+
+                </div>
+
+
+
+
+                <div class ="smallbox" style="display: none;">
+                    <div class="box-title">
+                        <div class="row1" style="display: flex;">
+                            <h2>Write Statistics</h2>
+                            <p style="font-size: 16px"></p>
+                        </div>
+                    </div>
+
+                    <div class="nw" id="wrteS"></div>
+
+                </div>
+            </div>
+
+
+        </div>
+
+        <div class="menu-container" index="3" tag="도움말">
+
+            <div class="box hotkey">
+                <div class="box-title"><h1>
+                    <i class="far fa-keyboard"></i> 단축키
+                </h1></div>
+                <div class="box-detail">
+                    <div class="col-flex-wrap">
+                        <div class="col-flex col-1">
+                            <span><kbdWrap><kbd>A</kbd></kbdWrap>  이전 글 목록 <br></span>
+                            <span><kbdWrap><kbd>S</kbd></kbdWrap>  다음 글 목록 <br></span>
+                            <span><kbdWrap><kbd>C</kbd></kbdWrap>  댓글로 이동 <br></span>
+                            <span><kbdWrap><kbd>Q</kbd></kbdWrap>  차단 방식 전환 <br></span>
+                        </div>
+                        <div class="col-flex col-2">
+                            <span><kbdWrap><kbd>R</kbd></kbdWrap>  새로고침 <br></span>
+                            <span><kbdWrap><kbd>T</kbd></kbdWrap>  맨 위로 <br></span>
+                            <span><kbdWrap><kbd>W</kbd></kbdWrap>  글작성 <br></span>
+                            <span><kbdWrap><kbd>ALT</kbd>+<kbd>S</kbd></kbdWrap>  글등록 </span>
+                        </div>
+                    </div>
+                    <span><br></span>
+                    <span style="color: #3379b7; background: #3379b730; padding: 9px; padding-left: 20px;"><i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i> 글등록 단축키(ALT+S)가 작동이 안되는 경우 <a href="#" id="goShortCut"><bold>여기</bold>↖</a>에서 수동으로 지정</span>
+
+                </div>
+
+            </div>
+
+            <div class="box">
+                <div class="box-title">
+                    <h1><i class="fas fa-crow"></i> 바로 글 보기</h1>
+                </div>
+                <div class="box-detail"><span>
+                    글 목록에서 페이지 이동 없이 바로 글을 볼 수 있습니다.
+                    이 기능은 글 목록에서만 작동하며, 게시물 아래 나타나는 글 목록에서는 작동하지 않습니다. 게시물 창 바깥을 클릭하거나, ESC키로 창을 닫을 수 있습니다.
+                    <br><br> <fld>개념글 추천</fld>은 지원하지 않으며 그 외 <fld>마갤 매니저</fld> 등 테스트해보지 않은 기능은 작동하지 않을 수 있으며, 이는 디시인사이드 업데이트에 따라 변할 수 있습니다.
+                    기능을 활성화한 상태에서도 글 제목 좌측의 아이콘(짤방유무, 개념글)을 누르면 기존과 같이 게시물 페이지로 이동할 수 있습니다.
+                </span></div>
+            </div>
+
+            <div class="box">
+                <div class="box-title">
+                    <h1><i class="far fa-eye-slash"></i> 사용자 차단</h1>
+                </div>
+                <div class="box-detail"><span>
+                    사용자 차단 필터를 구성하여, 조건에 일치하는 글과 댓글을 목록에서 제외합니다.
+                    필터는 정규표현식으로 구성되어 정교하게 조건을 구성할 수 있습니다. 정규표현식에서는 <fld>환장</fld>라는 단어를 추가하면 해당 단어가 포함된
+                    모든 대상을 검색 <fld>(예. 전두환장하겠네)</fld> 하게 되므로 메타문자를 사용하여 해당 단어로 시작하는 대상, 끝나는 대상 등과 같이 조건범위를
+                    줄일 수 있습니다. 상세한 사용법은 <a target="_blank" href="https://regexr.com/">regexr.com</a> 이나 위키 등에서 확인할 수 있습니다.
+                    <br><br>
+                    잘못된 정규표현식의 경우 오류를 띄워주고 값을 저장하지 않으나 일부 정규식 엔진으로 검출되지 않는 오류의 형태가 존재합니다.
+                    이 경우 모든 글, 댓글이 필터링되어 가려지거나, 모든 필터가 적용되지 않습니다.
+                    <br><br>
+                    갤러리 우측 하단  <i class="far fa-eye" style="margin: 0 0 0 3px;"></i>
+                    버튼을 클릭하여 일시적으로 차단 방식을 전환할 수 있습니다. 전환된 차단 방식은 페이지를 벗어나기 전까지 유지되며 설정값을 변경하지 않습니다.
+                    <br><br>
+                    기본적으로 공앱 차단 필터와 호환되나, 공앱의 경우 정규식이 적용되지 않기 때문에 <code>\$^?*[]</code> 등 특수패턴 문자를 사용하는 경우 해당 요소는 반영되지 않습니다.
+                </span></div>
+            </div>
+            <div class="box">
+                <div class="box-title">
+                    <h1><i class="fas fa-sticky-note"></i> 사용자 메모</h1>
+                </div>
+                <div class="box-detail"><span>
+                    글·댓글의 작성자 유동닉 IP를 지정한 텍스트로 대체합니다. 대체된 텍스트에 커서를 올리면 대체되기 전 IP가 표시됩니다.
+                    <em><fld>[IP-MEMO]</fld></em> 규칙으로 작성되며, <fld>줄내림 (ENTER,\n)</fld>을 통해 구분합니다.
+                    기본적으로 통신사 IP 대역이 작성되어있으며, 사용자가 값을 추가할 수 있습니다.
+                    <br><br>
+                    올바르지 않은 규칙은 무시되며 사용자 차단과 다르게 정규식을 지원하지 않습니다. 공앱과 작성 규칙이 같아 공앱 메모 리스트를 복사하여 그대로 사용할 수 있습니다.
+                    <br><br>
+                    태그를 사용하여 텍스트에 색을 입힐 수 있습니다. <code>203.226-&lt;red&gt;𝗦𝗞&lt;/red&gt;</code>와 같이 대체할 텍스트를 태그로 감싸 색을 입힙니다.
+                    현재 지원하는 태그는 <code>red, blue, green</code>입니다.
+                </span>
+                    <span><br></span>
+                    <span style="color: #3379b7; background: #3379b730; padding: 9px; padding-left: 20px;"><i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i> 메모 색상 표시는 임시 추가된 기능으로 바뀔 수 있습니다</span>
+
+
+                </div>
+            </div>
+            <div class="box">
+                <div class="box-title">
+                    <h1><i class="far fa-images"></i> 자동짤방 등록</h1>
+                </div>
+                <div class="box-detail">
+                    <span>현재 실험 중인 기능입니다.</span>
+                </div>
+            </div>
+            <div class="box">
+                <div class="box-title">
+                    <h1><i class="fas fa-tools"></i> 엑박 자동 새로고침</h1>
+                </div>
+                <div class="box-detail">
+                    <span>
+                        자동으로 글 내부 이미지를 원본 첨부파일 주소로 대체합니다. 서버 문제로 반복적으로 모든 본문의 짤방이 안보일 때만 사용을 권장합니다.
+                        간혈적으로 발생하는 엑박은 이 기능을 켜지 마시고 게시물 제목 우측의 <fld>이미지 새로고침</fld> 버튼을 눌러주세요.
+                        <br><br>
+                        외부링크로 삽입된 이미지가 있을 경우 제대로 동작하지 않을 수 있습니다. 또한 원본 첨부파일 순서를 따르므로 사용자가 임의로 순서를 바꾼 경우
+                        적용되지 않을 수 있습니다.
+
+
+                    </span>
+                </div>
+            </div>
+
+            <div class="box">
+                <div class="box-title">
+                    <span><br><br><br><br></span><span><i class="fas fa-angle-right" style="margin-right: 3px"></i> 설정을 변경한 뒤 갤러리를 새로고침해야 변경내용이 적용됩니다.<br></span><span><i class="fas fa-angle-right" style="margin-right: 3px"></i> 갤러리 주소를 <code>../?id=baseball_new7&amp;page=1</code> 형태로 맞추는 것을 권장합니다.<br></span><span><i class="fas fa-angle-right" style="margin-right: 3px"></i> 시크릿모드(Incognito Mode)에서의 실행을 보장하지 않습니다.<br></span><span><i class="fas fa-angle-right" style="margin-right: 3px"></i> 현재 별도의 백업 및 동기화 기능을 지원하지 않습니다. <br></span><span><i class="fas fa-angle-right" style="margin-right: 3px"></i> 버그리포트 및 문의사항은 <a target="_blank" href="https://chrome.google.com/webstore/detail/dcsimpler/kgpiejjjpjkcijopeabfleliifbhfnci/support?hl=ko">여기</a>로 해주시면 감사하겠습니다.  <br></span><h1></h1><span></span></div>
+            </div>
+        </div>
+        <div class="menu-container" index='5' tag="프로그램정보">
+            <div class ="box">
+                <div class="box-title">
+                    <div class="row1" style="display: flex;">
+                        <img class="extension-icon" src="../icon/icon128.png">
+                        <div>
+                            <h2>DCSimpler</h2>
+                            <p style="font-size: 16px"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="libSource">
+                    <div class="libImage" id="chartJS"></div>
+                    <div class="libImage" id="jQuery"></div>
+                    <div class="libImage" id="fontAwesome"></div>
+
+                </div>
+            </div>
+            <div class="box" id="updatelog">
+                <!--<iframe seamless="seamless" id="ubb" src="https://sites.google.com/view/dcsimpler/updatelog" width="800px" height="600px" frameborder="0" scrolling="yes"></iframe>-->
+            </div>
+        </div>
+
+        <div class="menu-container" index='6' tag="사용자 차단">
+            <div class ="box" id="option2">
+                <div class="box-title"> <h2>차단 필터 관리</h2> <p style="font-size: 16px">정규식을 이용하여 각 항목의 필터를 추가할 수 있습니다</p></div>
+                <div class="wrapper sT" style="float: right; transform: translateY(-98%);">
+                    <input type=submit class="saveText blac nickname" value="닉네임" index="nickname">
+                    <input type=submit class="saveText blac id" value="아이디" index="id">
+                    <input type=submit class="saveText blac ip" value="아이피" index="ip">
+                    <input type=submit class="saveText blac keyword" value="키워드" index="keyword">
+                </div>
+
+                <!--<div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler2" t="blacklist" haveChildren="true"></div>-->
+            </div>
+
+            <div class ="box child blacklist">
+
+                <!--<div class ="smallbox">-->
+                <!--<div class="box-title"> <h3>차단된 게시글 표시</h3> <p style="font-size: 16px">차단된 게시글이 회색으로 표시됩니다</p></div>-->
+                <!--<div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler2inside0" t="blacklist_view"></div>-->
+                <!--</div>-->
+
+                <!--<div class ="smallbox">-->
+                <!--<div class="box-title"> <h3>갤러리 공지 차단</h3> <p style="font-size: 16px">갤러리 별 공지 게시물을 차단합니다</p></div>-->
+                <!--<div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler2inside1" t="blacklist_notice"></div>-->
+                <!--</div>-->
+
+                <!--<div class ="smallbox">-->
+                <!--<div class="textBox" id="nickname">-->
+                <!--닉네임-->
+                <!--<input class="editText" id="nickname" tag="blacklist" placeholder="토게|^유골함$" spellcheck="false" required>-->
+                <!--<input class="saveText "id="nickname" tag="blacklist" value="저장" type="submit">-->
+                <!--</div>-->
+
+                <!--<div class="textBox" id="id">-->
+                <!--아이디-->
+                <!--<input class="editText" id="id" tag="blacklist" placeholder="^ㅇㅇ$" spellcheck="false" required>-->
+                <!--<input class="saveText "id="id" tag="blacklist" value="저장" type="submit">-->
+                <!--</div>-->
+                <!---->
+                <!--<div class="textBox" id="ip">-->
+                <!--아이피-->
+                <!--<input class="editText" id="ip" tag="blacklist" placeholder="321.173|173\." spellcheck="false" required>-->
+                <!--<input class="saveText "id="ip" tag="blacklist" value="저장" type="submit">-->
+                <!--</div>-->
+
+                <!--<div class="textBox" id="keyword">-->
+                <!--키워드-->
+                <!--<input class="editText" id="keyword" tag="blacklist" placeholder="윤서인|정준하" spellcheck="false" required>-->
+                <!--<input class="saveText "id="keyword" tag="blacklist" value="저장" type="submit">-->
+                <!--</div>-->
+                <!--</div>-->
+                <div class="smallbox blacklist id">
+                    <div class="box-title"> <h3>아이디 필터</h3> <p style="font-size: 16px">차단된 게시글이 회색으로 표시됩니다</p></div>
+                    <div class="button-wrapper">
+                        <button class="saveText blacklist id">변경사항 저장</button>
+                        <button class="saveText export">내보내기</button>
+                        <button class="saveText import">가져오기</button>
+                    </div>
+                    <div class="wrapper">
+                        <textarea rows="3" class="editText blacklist id"id="tln-blacklist-id" placeholder="wjsenghks1 &#13;&#10;reddevils01"></textarea>
+                    </div>
+                </div>
+                <div class="smallbox blacklist ip">
+                    <div class="box-title"> <h3>아이피 필터</h3> <p style="font-size: 16px">차단된 게시글이 회색으로 표시됩니다</p></div>
+                    <div class="button-wrapper">
+                        <button class="saveText blacklist ip">변경사항 저장</button>
+                        <button class="saveText export">내보내기</button>
+                        <button class="saveText import">가져오기</button>
+                    </div>
+                    <div class="wrapper">
+                        <textarea rows="3" class="editText blacklist ip"id="tln-blacklist-ip" placeholder="123.456 &#13;&#10;123.456"></textarea>
+                    </div>
+                </div>
+                <div class="smallbox blacklist nickname">
+                    <div class="box-title"> <h3>닉네임 필터</h3> <p style="font-size: 16px">차단된 게시글이 회색으로 표시됩니다</p></div>
+                    <div class="button-wrapper">
+                        <button class="saveText blacklist nickname">변경사항 저장</button>
+                        <button class="saveText export">내보내기</button>
+                        <button class="saveText import">가져오기</button>
+                    </div>
+                    <div class="wrapper">
+                        <textarea rows="3" class="editText blacklist nickname"id="tln-blacklist-nickname" placeholder="아르기닌 &#13;&#10;세발낙지"></textarea>
+                    </div>
+                </div>
+                <div class="smallbox blacklist keyword">
+                    <div class="box-title"> <h3>키워드 필터</h3> <p style="font-size: 16px">차단된 게시글이 회색으로 표시됩니다</p></div>
+                    <div class="button-wrapper">
+                        <button class="saveText blacklist keyword">변경사항 저장</button>
+                        <button class="saveText export">내보내기</button>
+                        <button class="saveText import">가져오기</button>
+                    </div>
+                    <div class="wrapper">
+                        <textarea rows="3" class="editText blacklist keyword"id="tln-blacklist-keyword" placeholder="^나도내가  &#13;&#10;팩트  &#13;&#10;속보"></textarea>
+                    </div>
+                </div>
+
+
+                <div class ="smallbox" style="display: none;">
+                    <div class="box-title"> <h3>뷰</h3> <p style="font-size: 16px"></p>
+                        <div class="test-field nickname"></div>
+                        <div class="test-field id"></div>
+                        <div class="test-field ip"></div>
+                        <div class="test-field keyword"></div>
+
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+
+        <div class="menu-container" index='7' tag="레이아웃">
+
+
+
+
+            <div class ="box" id="option5">
+                <div class="box-title"> <h2>글 간격 확대</h2> <p style="font-size: 16px">갤러리의 글 간격을 넓게 봅니다 걍 내가 눈안좋아서 넣음</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler5" t="upScale"></div>
+            </div>
+
+
+            <div class ="box" id="option6">
+                <div class="box-title"> <h2>우측 최근방문목록</h2> <p style="font-size: 16px">최근방문목록을 우측에 추가합니다</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler6" t="addRightSideVisitHistory"></div>
+            </div>
+
+            <div class ="box" id="option6">
+                <div class="box-title"> <h2>글쓴이 좌측 정렬</h2> <p style="font-size: 16px">글목록에서 글쓴이 항목을 좌측정렬합니다</p></div>
+                <div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler6" t="alignLeftContentWriter"></div>
+            </div>
+
+            <div class ="box" id="option5">
+                <div class="box-title"> <h2>레이아웃 관리</h2> <p style="font-size: 16px">레이아웃 최소화 옵션을 적용할 요소를 직접 편집할 수 있습니다</p></div>
+                <!--<div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler5" t="minimizeLayout"></div>-->
+            </div>
+
+            <div class ="box child">
+
+                <div class ="smallbox" style="margin-top: 20px">
+                    <div class="textBox" id="layout-minimize">
+                        선택자
+                        <input class="editText" id="input-layout-minimize" tag="input-layout-minimize" placeholder=".gnb_bar, .dcheader" spellcheck="false" required>
+                        <input class="saveText color-blue" id="button-layout-minimize" tag="button-layout-minimize" value="저장" type="submit">
+                    </div>
+                </div>
+
+                <div class ="smallbox" style="margin-top: 20px">
+                    <div class="textBox">
+                        <span>
+                            <code>.dcheader</code> 상단 검색창 및 헤더 <br>
+                            <code>.gnb_bar</code> 상단 네비게이터 바 <br>
+                            <code>.issue_wrap</code> 갤러리 이슈박스 (최근방문목록을 포함) <br>
+                            <code>.issue_contentbox</code>, <code>.concept_wrap</code> 갤러리 이슈박스 (최근방문목록제외) <br>
+                            <code>.rightbanner</code> 로그인창 하단 광고영역 <br>
+                            <code>.content_box</code> 우측 하단 초개념 및 힛갤 패널 <br>
+                            <code>.dcfoot</code> 하단 사이트맵 <br>
+                            <code>.visit_history</code> 최근방문목록 <br>
+                            <br>
+                            그 밖에도 CSS선택자를 이용해 본인이 원하는 요소를 숨길 수 있습니다
+
+                        </span>
+
+
+                    </div>
+                </div>
+            </div>
+
+
+
+        </div>
+
+        <div class="menu-container" index='8' tag="사용자 메모">
+            <div class ="box" id="option5">
+                <div class="box-title"> <h2>사용자 메모 필터 관리</h2> <p style="font-size: 16px"><code>IP-memo</code> 형태로 작성합니다. 줄내림(ENTER, \n)으로 사용자를 구분하며 공앱과 호환됩니다</p></div>
+                <!--<div class="box-toggler"> <input type="checkbox" class="toggler" id="toggler5" t="upScale" haveChildren="true"></div>-->
+            </div>
+
+            <div class="box child userMemo">
+                <div class ="smallbox">
+                    <div class="box-title"> <h3>사용자 메모 필터</h3> <p style="font-size: 16px">차단된 게시글이 회색으로 표시됩니다</p></div>
+                    <div class="button-wrapper">
+                        <button class="saveText userMemo save color-sky">변경사항 저장</button>
+                        <button class="saveText userMemo export color-sky">내보내기</button>
+                        <button class="saveText userMemo import color-sky">가져오기</button>
+                    </div>
+                    <div class="wrappper">
+                        <textarea rows="3" class="editText userMemo"id="tln-userMemo" style="width: 100%; background: #fbfbfb; border:1px #d0d0d0 solid;" placeholder="123.456-SK통피 &#13;&#10;123.456-KT통피"></textarea>
+                    </div>
+                </div>
+
+
+
+
+
+            </div>
+        </div>
+
+        <div style="display: none; margin-left:20px; margin-bottom: 30px; color:#d0d0d0;">dcsimpler</div>
+    </div>
+</div>
+
+<div id="ffooter">
+    <div class ="box" id="footer" style="text-align: right">
+
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,21 @@
+# OS / 에디터
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# 브라우저가 로드 시 생성하는 서명·검증 메타데이터
+_metadata/
+
+# 빌드 산출물
+*.crx
+*.pem
+*.zip
+dist/
+build/
+
+# 로그
+*.log
+npm-debug.log*
+node_modules/
