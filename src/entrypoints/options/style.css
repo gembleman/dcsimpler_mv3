@@ -1,0 +1,73 @@
+.toggler {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    width: 52px;
+    height: 28px;
+    margin: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #d0d0d0;
+    cursor: pointer;
+    outline: none;
+    vertical-align: middle;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggler::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease;
+}
+
+.toggler:checked {
+    background: #337ab7;
+}
+
+.toggler:checked::before {
+    transform: translateX(24px);
+}
+
+.toggler:focus-visible {
+    box-shadow: 0 0 0 3px rgba(51, 122, 183, 0.25);
+}
+
+.toggler:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+@keyframes dcs-flash-ok {
+    0% { background-color: #76cc84; }
+    100% { background-color: var(--dcs-flash-bg, #fbfbfb); }
+}
+
+@keyframes dcs-flash-err {
+    0% { background-color: #f1a39e; }
+    100% { background-color: var(--dcs-flash-bg, #fbfbfb); }
+}
+
+@keyframes dcs-shake {
+    0%, 100% { transform: translateX(0); }
+    8.333%, 25%, 41.667%, 58.333%, 75%, 91.667% { transform: translateX(-4px); }
+    16.667%, 33.333%, 50%, 66.667%, 83.333% { transform: translateX(4px); }
+}
+
+.dcs-flash-ok {
+    animation: dcs-flash-ok 1s ease-out;
+}
+
+.dcs-flash-err {
+    animation: dcs-flash-err 1s ease-out;
+}
+
+.dcs-shake {
+    animation: dcs-shake 0.45s ease-in-out, dcs-flash-err 1s ease-out;
+}

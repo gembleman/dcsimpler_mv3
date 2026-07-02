@@ -46,3 +46,30 @@ export async function increaseStat({ id, name, flag }) {
 export async function clearHistory(range = 30) {
   await chrome.storage.local.set({ history: setupRange(range) });
 }
+
+export function groupByDay(history = {}) {
+  const o = {};
+  for (const [date, gallIds] of Object.entries(history)) {
+    if (!o[date]) o[date] = { view: 0, write: 0, reply: 0 };
+    for (const value of Object.values(gallIds)) {
+      o[date].view += value.view;
+      o[date].write += value.write;
+      o[date].reply += value.reply;
+    }
+  }
+  return o;
+}
+
+export function groupByGall(history = {}) {
+  const o = {};
+  for (const gallIds of Object.values(history)) {
+    for (const [id, value] of Object.entries(gallIds)) {
+      if (!o[id]) o[id] = { name: '', view: 0, write: 0, reply: 0 };
+      if (o[id].name === '' && value.name) o[id].name = value.name;
+      o[id].view += value.view;
+      o[id].write += value.write;
+      o[id].reply += value.reply;
+    }
+  }
+  return o;
+}

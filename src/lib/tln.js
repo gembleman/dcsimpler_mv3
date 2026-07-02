@@ -1,4 +1,4 @@
-const TLN = {
+export const TLN = {
     eventList: {},
     update_line_numbers: function(ta, el) {
         let lines = ta.value.split("\n").length;
@@ -91,3 +91,5 @@ const TLN = {
         delete TLN.eventList[id];
     }
 }
+
+export default TLN;
