@@ -20,33 +20,47 @@ function setupRange(range) {
   return obj;
 }
 
+let historyMutationQueue = Promise.resolve();
+
+function enqueueHistoryMutation(task) {
+  const next = historyMutationQueue.then(task, task);
+  historyMutationQueue = next.catch(() => {});
+  return next;
+}
+
 /** 최근 range일 범위 밖의 기록을 버리고 키 순서를 재정렬한다 (구 egypt.sync). */
-export async function pruneHistory(range = 30) {
-  const { history } = await chrome.storage.local.get('history');
-  const skeleton = setupRange(range);
-  for (const key of Object.keys(history ?? {})) {
-    if (key in skeleton) skeleton[key] = history[key];
-  }
-  await chrome.storage.local.set({ history: skeleton });
-  return skeleton;
+export function pruneHistory(range = 30) {
+  return enqueueHistoryMutation(async () => {
+    const { history } = await chrome.storage.local.get('history');
+    const skeleton = setupRange(range);
+    for (const key of Object.keys(history ?? {})) {
+      if (key in skeleton) skeleton[key] = history[key];
+    }
+    await chrome.storage.local.set({ history: skeleton });
+    return skeleton;
+  });
 }
 
 /** view/write/reply 카운트 증가 (구 egypt.increase2). */
-export async function increaseStat({ id, name, flag }) {
+export function increaseStat({ id, name, flag }) {
   // 갤러리 id를 못 읽은 페이지의 요청은 무시한다 (history[...]["undefined"] 누적 방지).
-  if (id == null || id === '' || id === 'undefined') return;
-  const { history = {} } = await chrome.storage.local.get('history');
-  const today = todayKey();
-  if (!history[today]) history[today] = {};
-  if (!history[today][id]) {
-    history[today][id] = { name, view: 0, reply: 0, write: 0 };
-  }
-  history[today][id][flag]++;
-  await chrome.storage.local.set({ history });
+  if (id == null || id === '' || id === 'undefined') return Promise.resolve();
+  return enqueueHistoryMutation(async () => {
+    const { history = {} } = await chrome.storage.local.get('history');
+    const today = todayKey();
+    if (!history[today]) history[today] = {};
+    if (!history[today][id]) {
+      history[today][id] = { name, view: 0, reply: 0, write: 0 };
+    }
+    history[today][id][flag]++;
+    await chrome.storage.local.set({ history });
+  });
 }
 
-export async function clearHistory(range = 30) {
-  await chrome.storage.local.set({ history: setupRange(range) });
+export function clearHistory(range = 30) {
+  return enqueueHistoryMutation(async () => {
+    await chrome.storage.local.set({ history: setupRange(range) });
+  });
 }
 
 export function groupByDay(history = {}) {
@@ -75,3 +89,4 @@ export function groupByGall(history = {}) {
   }
   return o;
 }
+

@@ -15,38 +15,6 @@ function insertAfter(newNode, existingNode) {
 function strToNode(str) {
     return document.createRange().createContextualFragment(str);
 }
-function deleteElements(selector) {
-    // in case the content script was injected after the page is partially loaded
-    doDelete(document.querySelectorAll(selector));
-
-    var mo = new MutationObserver(process);
-    mo.observe(document, {subtree:true, childList:true});
-    document.addEventListener('DOMContentLoaded', function() { mo.disconnect() });
-
-    function process(mutations) {
-        for (var i = 0, l = mutations.length; i < l; i++) {
-            var nodes = mutations[i].addedNodes;
-            for (var j = 0, k = nodes.length; j < k; j++) {
-                var n = nodes[j];
-                if (n.nodeType !== 1) // only process Node.ELEMENT_NODE
-                    continue;
-                doDelete(n.matches(selector) ? [n] : n.querySelectorAll(selector));
-            }
-        }
-    }
-    function doDelete(nodes) {
-        [].forEach.call(nodes, function(node) { node.remove() });
-    }
-}
-function observe(selector, process) {
-    let mo = new MutationObserver(process);
-    mo.observe(selector, {subtree: true, childList: true});
-}
-jQuery.fn.hasScrollBar = function () {
-    if( this.height() < 800) {return this.get(0).scrollHeight > this.height();}
-    else return this.get(0).scrollHeight-10 > 800;
-};
-
 // contentBlocking
 let contentBlock = {
     convert : function (input) {
@@ -339,19 +307,18 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
             $("#small_loading").css("opacity", "0");
 
             // when load to iframe without comment contents, forcing refresh comments
-            var numberOfcommentsFromDialog = document.querySelector('.gall_comment').innerHTML.replace(/[^0-9]/g,"");
-            var numberOfcommentsFromiFrame = document.getElementById('dcs_iframe').contentWindow.document.querySelector('span[id^=comment]');
+            var iframeDocument = document.getElementById('dcs_iframe').contentWindow.document;
+            var numberOfcommentsFromDialog = document.querySelector('.gall_comment').innerHTML.replace(/[^0-9]/g, "");
+            var commentCountElement = iframeDocument.querySelector('span[id^=comment]');
+            var numberOfcommentsFromiFrame = commentCountElement ? commentCountElement.innerText.replace(/[^0-9]/g, "") : "0";
 
             if(numberOfcommentsFromDialog !== '0' && numberOfcommentsFromiFrame === '0') {
-                document.getElementById('dcs_iframe').contentWindow.document.querySelector('.btn_cmt_refresh').click();
-                console.log('############ CMP FUNCTION ###########');
-                console.log(numberOfcommentsFromDialog, numberOfcommentsFromiFrame);
+                var refreshButton = iframeDocument.querySelector('.btn_cmt_refresh');
+                if (refreshButton) refreshButton.click();
             }
         });
     }
 
-    // TODO : refactor mutation
-    // TODO : try ~ : is neccesary?
     function observeIframe(selector) {            //test-20191212
         let mo = new MutationObserver(process);
         mo.observe(selector, {subtree: true, childList:true, attributeOldValue: true, attributes: true});
@@ -489,7 +456,6 @@ let openDialog = function(position, callback) {
         },
         beforeClose: function () {
             $("#dcs_dialog").remove();
-            clearTimeout(window.timer);
             if(ac.controller) ac.controller.abort();
         },
         resizable: false,
@@ -572,7 +538,7 @@ let requestArticle = async function (url, dialogTemplate = $('#dcs_dialog')) {
 };
 
 /**merged.js**/
-let app, mpd, b;
+let app;
 app = {};
 app.requestConfig = function () {
     return new Promise ( function (resolve, reject) {
@@ -585,16 +551,6 @@ app.requestConfig = function () {
             else reject(new Error('Config response is empty'));
         });
     })
-}
-app.getScripts = function (filenames) {
-    let filename = filenames.split(',');
-    let head = document.getElementsByTagName('head')[0];
-    for(let i=0, l=filename.length ; i<l ; i++) {
-        let script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.src = '//gall.dcinside.com/_js/'+filename[i].replace(" ", "");
-        head.appendChild(script);
-    }
 }
 app.sendToBackground = function (msg) {
     chrome.runtime.sendMessage({flag: msg, id: location.dcs.query.id, name: document.title}, function(response) {
@@ -811,11 +767,6 @@ let manipulateDOM = {
             document.querySelector('#dcs_visit_history').innerHTML = createGalleryElements(latelyGallery);
         });
     },
-    searchbox: function () {
-        let searchbox = '<div class="dcs_search_box">';
-        searchbox += '<input class="dcs_search_box_inner">';
-        $('#dcs_right_content').append(searchbox);
-    },
     outerButton: () => {
         $('.dcwrap')
             .append("<a id='backTop' class='external-button blue'>TOP</a>")
@@ -950,7 +901,6 @@ let manipulateDOM = {
                 navigator: true,
                 outerButton: true,
                 visitHistory: true,
-                searchbox: true,
                 globalListener: true,
                 hotkeybinding: true
             });
@@ -967,12 +917,6 @@ let manipulateDOM = {
                 hotkeybinding: true,
                 observeComment: true
             });
-        },
-        write: () => {
-
-        },
-        modify: () => {
-
         }
     }
 };
@@ -984,9 +928,7 @@ postprocessing.blurImage = function () {
     var target = $('.gallview_contents').children('.inner');
     var select = $(target).find('img, video');
     console.log(select);
-    var element = '<div id="dcs_blurButton" style="display: none;" onclick="javascript:$(\'.gallview_contents\').children(\'.inner\').find(\'img\').removeAttr(\'onclick\')">bluring</div>';
-    target.append(element);
-    $('#dcs_blurButton').click();
+    target.find('img').removeAttr('onclick');
     select.attr('blur', 'y');
     select.on('click', function (event) {
         $(this).attr('blur', 'n');
@@ -994,9 +936,6 @@ postprocessing.blurImage = function () {
         event.stopPropagation();
     });
 
-    document.body.addEventListener('click', function (event) {
-        console.log(event.target.attributes);
-    });
 };
 postprocessing.forceReloadImage = function () {
     if(config.autoRefreshImage === false) return;
@@ -1018,11 +957,10 @@ postprocessing.avoidServiceCode = function () {
         }
     });
 
-    $('.write_infobox') // avoiding service_code:undefine
-        .append('<a id="test" style="display: none;" href="javascript:console.log(_r); console.log(typeof _r);">TEST</a>')
-        .append('<a id="mouseoverTrigger" style="display: none;" href="javascript:var e = $(\'div\');$.each(e, function(index, value){$(value).trigger(\'mouseover\'); console.log(_r)});">TEST</a>')
-        .append('<a id="mousedownTrigger" style="display: none;" href="javascript:var e = $(\'div\');$.each(e, function(index, value){$(value).trigger(\'mousedown\'); console.log(_r)});">TEST</a>')
-        .find('#mouseoverTrigger')[0].click();
+    // avoiding service_code:undefine
+    document.querySelectorAll('div').forEach(function (element) {
+        element.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
+    });
 
     $(document).on('click', '.btn_blue.btn_svc.write', function (event) {
         app.sendToBackground('write');
@@ -1048,12 +986,8 @@ postprocessing.run.view = function () {
 postprocessing.run.write = function () {
     postprocessing.avoidServiceCode();
 };
-postprocessing.run.modify = function () {
-
-};
-
 /**main.js**/
-let config, filter, devOption, selectors, progress, keyEnum, main;
+let config, filter, keyEnum, main;
 
 filter = {
     blacklist: {},
@@ -1067,28 +1001,6 @@ keyEnum = {
     S:83,
     ESC:27
 };
-progress = {
-    OK: 1,
-    ERR_RED: -1,
-    ERR_YEL: 2
-};
-selectors = {
-    commentBox: "#dcs-comment-box",
-    listWrapper: "#dcs-wrapper",
-    iframe: "#dcs-iframe",
-    navigator: "#dcs-navigator",
-    viewToggler: '#dcs-view-toggle',
-    backTop: '#dcs-backtop-button',
-    rightContents: '#dcs-right-content',
-    searchBox: '#dcs-right-search-box',
-    pagenation: '#dcs-pagenation'
-};
-devOption = {
-    nightly: chrome.runtime.id === 'kgpiejjjpjkcijopeabfleliifbhfnci'? 0 : 1,
-    verbose: chrome.runtime.id === 'kgpiejjjpjkcijopeabfleliifbhfnci'? 0 : 2,
-    showiFrame: chrome.runtime.id === 'kgpiejjjpjkcijopeabfleliifbhfnci'? 0 : 0
-};
-
 
 let calltype;
 /** only run when has pathname **/
@@ -1127,8 +1039,8 @@ main = function () {
             return exitMain();
         }
 
-        manipulateDOM.run[calltype]();
-        postprocessing.run[calltype]();
+        if (typeof manipulateDOM.run[calltype] === 'function') manipulateDOM.run[calltype]();
+        if (typeof postprocessing.run[calltype] === 'function') postprocessing.run[calltype]();
 
         if(calltype === 'lists' || calltype ==='view') {
             loadList();
@@ -1169,3 +1081,4 @@ export function startDcsimpler() {
     bindCommandListener();
     main();
 }
+

@@ -243,15 +243,6 @@ function setupDoughnutChart(ctx) {
     return doughnutChart;
 }
 
-function initEditText() {
-    $.each($('.editText[tag=blacklist]'), function () {
-        const id = $(this).attr('id');
-        const value = config.blacklist_filter[id];
-        if (value === 'a^' || value.length === 0) $(this).val('');
-        else $(this).val(value);
-    });
-}
-
 function initBlacklist() {
     let id = config.blacklist_filter.id;
     let ip = config.blacklist_filter.ip;
@@ -533,30 +524,6 @@ function bindOptionHandlers(charts) {
         }
     });
 
-    $(document).on('click', '.saveText[tag=blacklist]', async function () {
-        const key = $(this).attr('id');
-        const element = $(this).prev();
-        const value = element.val();
-
-        if( value.length === 0 ) {
-            config.blacklist_filter[key] = 'a^';
-            await saveCurrentConfig();
-            flashOk(element);
-            return;
-        }
-        try {
-            const z = new RegExp(value);
-            element.css('color', 'inherit');
-            flashOk(element);
-        }
-        catch (e) {
-            console.log(e);
-            flashErr(element);
-            return;
-        }
-        config.blacklist_filter[key] = value;
-        await saveCurrentConfig();
-    });
 
     $(document).on('keydown', 'input[class~=editText]', function (event) {
         if(event.keyCode === 13){
@@ -636,7 +603,6 @@ async function initOptions() {
     $('#footer').html('dcsimpler_v.'+version);
     $('.menu-container[index="5"] p').first().prepend('<p>ver.'+version+'</p>');
     await addUpdateNotification(updateDescription);
-    initEditText();
     initUsermemo();
     initBlacklist();
     initBootStrapButton();
@@ -671,3 +637,4 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error(e);
     });
 });
+
