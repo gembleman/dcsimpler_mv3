@@ -572,7 +572,7 @@ async function initOptions() {
     version = chrome.runtime.getManifest().version;
     $('#bg').css('opacity','0').css('z-index','-999');
     $('#footer').html('dcsimpler_v.'+version);
-    $('.menu-container[index="5"] p:first').prepend('<p>ver.'+version+'</p>');
+    $('.menu-container[index="5"] p').first().prepend('<p>ver.'+version+'</p>');
     await addUpdateNotification(updateDescription);
     initEditText();
     initUsermemo();

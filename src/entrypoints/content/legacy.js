@@ -821,7 +821,7 @@ let manipulateDOM = {
         }
     },
     imageRefreshBtn: () => {
-        $('.title:first').append("<div class='refreshBtn' style='float : right; cursor: pointer; padding: 0 0 0 0;'>이미지 새로고침</div>");
+        $('.title').first().append("<div class='refreshBtn' style='float : right; cursor: pointer; padding: 0 0 0 0;'>이미지 새로고침</div>");
 
         $(document).off('click', '.refreshBtn');
         $(document).on('click', '.refreshBtn', function () {
@@ -861,7 +861,7 @@ let manipulateDOM = {
             //r : refresh gallery
             else if(event.keyCode === 82 && !event.ctrlKey) {
                 if($(event.target).is("input, textarea, .ui-dialog")) {}
-                else $('.btn_normal:first').trigger("click");
+                else $('.btn_normal').first().trigger("click");
             }
             //t : go page top
             else if(event.keyCode === 84 && !event.ctrlKey) {
@@ -1124,7 +1124,7 @@ function bindCommandListener() {
         $('#container').trigger('mousedown');
         $('#container').trigger('click');
         $('#subject').trigger('mousedown');
-        $('form:first').trigger('click');
+        $('form').first().trigger('click');
         $('.btn_blue.btn_svc.write, .btn_blue.write').trigger('click');
     });
 }
