@@ -1,4 +1,4 @@
-html {
+﻿html {
     font-weight: 600;
 }
 body {
@@ -536,9 +536,6 @@ fld { /* set font blue */
 }
 .libImage#fontAwesome{
     background:url('chrome-extension://__MSG_@@extension_id__/images/fA.png') no-repeat center center rgba(255,255,255,0.8)  /53px;
-}
-.libImage#jQuery{
-    background:url('chrome-extension://__MSG_@@extension_id__/images/jQuery.jpg') no-repeat center center rgba(255,255,255,0.8)  /40px;
 }
 
 #ffooter {

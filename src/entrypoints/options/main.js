@@ -1,4 +1,3 @@
-import '@/lib/jquery-global';
 import '@fontsource/noto-sans-kr/korean-100.css';
 import '@fontsource/noto-sans-kr/korean-300.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -8,12 +7,45 @@ import { getConfig, saveConfig } from '@/lib/storage';
 import { groupByDay, groupByGall, clearHistory } from '@/lib/stats';
 import TLN from '@/lib/tln';
 
-const $ = globalThis.$;
 const updateDescription = '업데이트되었습니다 변경사항을 확인해주세요';
 
 let config;
 let version;
 let history = {};
+
+function qs(selector, root = document) {
+    return root.querySelector(selector);
+}
+
+function qsa(selector, root = document) {
+    return Array.from(root.querySelectorAll(selector));
+}
+
+function delegate(root, eventName, selector, handler) {
+    root.addEventListener(eventName, function (event) {
+        if (!(event.target instanceof Element)) return;
+        const target = event.target.closest(selector);
+        if (!target || (root !== document && !root.contains(target))) return;
+        handler.call(target, event, target);
+    });
+}
+
+function toElements(target) {
+    if (target == null) return [];
+    if (typeof target === 'string') return qsa(target);
+    if (target instanceof Element) return [target];
+    if (target instanceof NodeList || target instanceof HTMLCollection || Array.isArray(target)) return Array.from(target).filter(Boolean);
+    return [];
+}
+
+function setDisplay(target, visible) {
+    for (const el of toElements(target)) el.style.display = visible ? '' : 'none';
+}
+
+function trigger(element, eventName) {
+    if (!element) return;
+    element.dispatchEvent(new Event(eventName, { bubbles: true, cancelable: true }));
+}
 
 async function readHistory() {
     const { history: storedHistory } = await chrome.storage.local.get('history');
@@ -22,15 +54,6 @@ async function readHistory() {
 
 async function saveCurrentConfig() {
     await saveConfig(config);
-}
-
-function toElements(target) {
-    if (target == null) return [];
-    if (typeof target === 'string') return Array.from(document.querySelectorAll(target));
-    if (target.jquery) return target.toArray();
-    if (target instanceof Element) return [target];
-    if (target instanceof NodeList || target instanceof HTMLCollection || Array.isArray(target)) return Array.from(target);
-    return [];
 }
 
 function applyFlash(target, classNames, duration = 1000) {
@@ -103,144 +126,95 @@ function setupChart(ctx, range) {
         },
         options: {
             plugins: {
-                legend: {
-                    display: false,
-                    labels: {
-                        color: 'rgb(255, 99, 132)'
-                    }
-                },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false
-                }
+                legend: { display: false, labels: { color: 'rgb(255, 99, 132)' } },
+                tooltip: { mode: 'index', intersect: false }
             },
             scales: {
-                x: {
-                    grid: {
-                        display: false
-                    }
-                },
-                'y-a1': {
-                    type:'linear',
-                    position: 'left',
-                    beginAtZero: true,
-                    suggestedMax:getMax(data.view)+530
-                },
-                'y-a2': {
-                    type:'linear',
-                    position:'right',
-                    beginAtZero: true,
-                    suggestedMax:getMax(data.write)+130,
-                    grid: {
-                        drawOnChartArea: false
-                    }
-                }
+                x: { grid: { display: false } },
+                'y-a1': { type:'linear', position: 'left', beginAtZero: true, suggestedMax:getMax(data.view)+530 },
+                'y-a2': { type:'linear', position:'right', beginAtZero: true, suggestedMax:getMax(data.write)+130, grid: { drawOnChartArea: false } }
             }
         }
     });
 
     function getLabels(range) {
-        const i = Object.keys(history);
-        const o = [];
-        jQuery.each(i, function(key, value) {
-            o.push(value.replace('d', '').replace('/', '-'));
-            return key+1 !== range;
-        });
-        return o.reverse();
+        const keys = Object.keys(history);
+        const output = [];
+        for (let index = 0; index < keys.length; index++) {
+            output.push(keys[index].replace('d', '').replace('/', '-'));
+            if (range && index + 1 === range) break;
+        }
+        return output.reverse();
     }
 
     function getValues(range) {
-        const i = groupByDay(history);
-        const o = {'view': [], 'write': [], 'reply': []};
+        const grouped = groupByDay(history);
+        const output = {'view': [], 'write': [], 'reply': []};
         let count = 0;
-        jQuery.each(i, function (key, value) {
-            o.view.push(value.view);
-            o.write.push(value.write);
-            o.reply.push(value.reply);
+        for (const value of Object.values(grouped)) {
+            output.view.push(value.view);
+            output.write.push(value.write);
+            output.reply.push(value.reply);
             count++;
-            if(range) if(count===range) return false;
-        });
-        o.view.reverse();
-        o.write.reverse();
-        o.reply.reverse();
-        return o;
+            if(range && count === range) break;
+        }
+        output.view.reverse();
+        output.write.reverse();
+        output.reply.reverse();
+        return output;
     }
 
     function getMax(numArray) {
         if (numArray.length === 0) return 0;
         return Math.max.apply(null, numArray);
     }
-    function getMin(numArray) {
-        if (numArray.length === 0) return 0;
-        return Math.min.apply(null, numArray);
-    }
     function getSum() {
-        const i = groupByDay(history);
+        const grouped = groupByDay(history);
         const sum = {'view': 0, 'write': 0, 'reply': 0};
-        $.each(i, function(key,value){
+        for (const value of Object.values(grouped)) {
             sum.view += value.view;
             sum.write += value.write;
             sum.reply += value.reply;
-        });
+        }
         return sum;
     }
 
     const total = getSum();
-    $('.view-box-part-detail[class~=view]').html(total.view);
-    $('.view-box-part-detail[class~=write]').html(total.write);
-    $('.view-box-part-detail[class~=reply]').html(total.reply);
+    qs('.view-box-part-detail.view').textContent = total.view;
+    qs('.view-box-part-detail.write').textContent = total.write;
+    qs('.view-box-part-detail.reply').textContent = total.reply;
 
     return myChart;
 }
 
 function setupDoughnutChart(ctx) {
-    const i = groupByGall(history);
+    const grouped = groupByGall(history);
     const label = [];
     const data = {'view': [], 'write': [], 'reply': []};
-    $.each(i, function (key, value) {
+    for (const value of Object.values(grouped)) {
         label.push(value.name);
         data.view.push(value.view);
         data.write.push(value.write);
         data.reply.push(value.reply);
-    });
+    }
 
-    const doughnutChart = new Chart(ctx, {
+    return new Chart(ctx, {
         type: 'doughnut',
         data: {
-            'labels': label,
-            'datasets': [
-                {
-                    'label': 'My First Dataset',
-                    'data': data.view,
-                    'backgroundColor': ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf']
-                },
-                {
-                    'label': 'My First Dataset',
-                    'data': data.write,
-                    'backgroundColor': ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf']
-                },
-                {
-                    'label': 'My First Dataset',
-                    'data': data.reply,
-                    'backgroundColor': ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf']
-                }]
+            labels: label,
+            datasets: [
+                { label: 'My First Dataset', data: data.view, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] },
+                { label: 'My First Dataset', data: data.write, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] },
+                { label: 'My First Dataset', data: data.reply, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] }
+            ]
         },
         options: {
             plugins: {
-                legend: {
-                    display: false,
-                    labels: {
-                        color: 'rgb(255, 99, 132)'
-                    }
-                },
-                tooltip: {
-                    bodyFont: { size: 22 },
-                    displayColors: false
-                }
+                legend: { display: false, labels: { color: 'rgb(255, 99, 132)' } },
+                tooltip: { bodyFont: { size: 22 }, displayColors: false }
             }
         }
     });
-    return doughnutChart;
 }
 
 function initBlacklist() {
@@ -254,132 +228,128 @@ function initBlacklist() {
     nickname = nickname == 'a^'? '' : nickname.replace(/\|/g,'\r\n');
     keyword = keyword == 'a^'? '' : keyword.replace(/\|/g,'\r\n');
 
-    $('.editText.blacklist.id').val(id);
-    $('.editText.blacklist.ip').val(ip);
-    $('.editText.blacklist.nickname').val(nickname);
-    $('.editText.blacklist.keyword').val(keyword);
+    qs('.editText.blacklist.id').value = id;
+    qs('.editText.blacklist.ip').value = ip;
+    qs('.editText.blacklist.nickname').value = nickname;
+    qs('.editText.blacklist.keyword').value = keyword;
 
     TLN.append_line_numbers('tln-blacklist-id');
     TLN.append_line_numbers('tln-blacklist-ip');
     TLN.append_line_numbers('tln-blacklist-nickname');
     TLN.append_line_numbers('tln-blacklist-keyword');
 
-    $('.editText.blacklist').each(growTextarea);
-    $('.smallbox.blacklist').not('.nickname').hide();
+    qsa('.editText.blacklist').forEach(growTextarea);
+    qsa('.smallbox.blacklist:not(.nickname)').forEach((element) => element.style.display = 'none');
 }
 
 function initUsermemo() {
-    const value = config.userMemo_filter;
-    $('textarea.userMemo').val(value);
+    const textarea = qs('textarea.userMemo');
+    textarea.value = config.userMemo_filter;
     TLN.append_line_numbers('tln-userMemo');
-    $('textarea.userMemo').each(growTextarea);
-    if ($('textarea.userMemo').css('height') === '0px') $('textarea.userMemo').css('height', '72px');
+    growTextarea(textarea);
+    if (getComputedStyle(textarea).height === '0px') textarea.style.height = '72px';
 }
 
 function initBootStrapButton() {
-    document.querySelectorAll('.toggler:not(.sub-option)').forEach(function (elem) {
+    qsa('.toggler:not(.sub-option)').forEach(function (elem) {
         const key = elem.getAttribute('t');
         const value = config[key];
         elem.checked = Boolean(value);
 
-        if(elem.getAttribute('haveChildren') != null) {
-            if(elem.checked === false) {
-                const childBox = elem.closest('.box')?.nextElementSibling;
-                if (childBox) childBox.style.display = 'none';
-            }
+        if(elem.getAttribute('haveChildren') != null && elem.checked === false) {
+            const childBox = elem.closest('.box')?.nextElementSibling;
+            if (childBox) childBox.style.display = 'none';
         }
     });
 
-    $('div[class^=menu-container]').not("[index='0']").hide();
+    qsa('div[class^=menu-container]:not([index="0"])').forEach((element) => element.style.display = 'none');
 }
 
 async function addUpdateNotification(innerText) {
     const { updateChk } = await chrome.storage.local.get('updateChk');
     if(!updateChk) return;
-    let updateNoti;
-    updateNoti = '<div class="update-notification upn-container">';
-    updateNoti += '<div class="upn-title"><i class="fas fa-info-circle" style="margin-right: 10px"/>v.'+version+'_updatelog</div>';
-    updateNoti += '<div class="upn-close-button"><i class="fas fa-times" id="close"/></div>';
-    updateNoti += '<div class="upn-detail">'+innerText+'</div>';
-    $('body').append(updateNoti);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'update-notification upn-container';
+    wrapper.innerHTML = '<div class="upn-title"><i class="fas fa-info-circle" style="margin-right: 10px"></i>v.'+version+'_updatelog</div>' +
+        '<div class="upn-close-button"><i class="fas fa-times" id="close"></i></div>' +
+        '<div class="upn-detail">'+innerText+'</div>';
+    document.body.append(wrapper);
 
-    $(document).on('click', '.update-notification', async function (event) {
-        $('.update-notification').remove();
+    wrapper.addEventListener('click', async function (event) {
+        wrapper.remove();
         await chrome.storage.local.set({ updateChk: false });
-        if( event.target.id !== 'close') $('.item[index="5"]').trigger('click');
+        if( event.target.id !== 'close') qs('.item[index="5"]')?.click();
     });
 }
 
 function addFootprint() {
-    let footPrint='';
-    footPrint += '<div id="footPrint">';
-    footPrint += 'dcsimpler | '+version;
-    $('body').append(footPrint);
+    document.body.insertAdjacentHTML('beforeend', '<div id="footPrint">dcsimpler | '+version+'</div>');
 }
 
 async function loadUpdatelog() {
     try {
         const response = await fetch('https://sites.google.com/view/dcsimpler/');
         const text = await response.text();
-        const nodes = $.parseHTML(text);
-        $('#updatelog').append($(nodes).find('div[role=main]'));
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        const main = doc.querySelector('div[role=main]');
+        if (main) qs('#updatelog')?.append(main);
     }
     catch (e) {
     }
 }
 
-function growTextarea(i, elem) {
-    elem = $(elem);
-    const offset = elem.prop('offsetHeight') - elem.prop('clientHeight');
-    const resizeTextarea = function( elem ) {
+function growTextarea(elem) {
+    if (!elem) return;
+    const offset = elem.offsetHeight - elem.clientHeight;
+    const resizeTextarea = function(element) {
         const scrollLeft = window.pageXOffset || (document.documentElement || document.body.parentNode || document.body).scrollLeft;
         const scrollTop  = window.pageYOffset || (document.documentElement || document.body.parentNode || document.body).scrollTop;
-        elem.css('height', 'auto').css('height', elem.prop('scrollHeight') );
+        element.style.height = 'auto';
+        element.style.height = (element.scrollHeight + offset) + 'px';
         window.scrollTo(scrollLeft, scrollTop);
     };
-    elem.on('input', function() {
-        resizeTextarea( $(this) );
+    elem.addEventListener('input', function() {
+        resizeTextarea(elem);
     });
-    resizeTextarea( $(elem) );
+    resizeTextarea(elem);
 }
 
 function testfield(obj) {
     const filter = config.blacklist_filter;
     Object.keys(filter).forEach(function (elem) {
-        const $frag = $(document.createDocumentFragment());
+        if (!obj[elem]) return;
+        const frag = document.createDocumentFragment();
         const arr = filter[elem].split('|');
-        $frag.append('<div class="data-info">' + filter[elem].length + '</div>');
-        $frag.append('<div class="data-info2">' + arr.length + '</div>');
-        const frag = arr.reduce(function (acc, cuv) {
-            acc.append('<div class="fragments">' + cuv + ' </div>');
-            return acc;
-        }, $frag);
-        $(obj[elem]).append(frag);
+        const info = document.createElement('div');
+        info.className = 'data-info';
+        info.textContent = filter[elem].length;
+        const info2 = document.createElement('div');
+        info2.className = 'data-info2';
+        info2.textContent = arr.length;
+        frag.append(info, info2);
+        arr.forEach(function (cuv) {
+            const item = document.createElement('div');
+            item.className = 'fragments';
+            item.textContent = cuv + ' ';
+            frag.append(item);
+        });
+        obj[elem].append(frag);
     });
 }
 
 function bindOptionHandlers(charts) {
-    $(document).on('click', '.item', function () {
-        const index = $(this).attr('index');
-        const menus = $('.item');
-        const containers = $('.menu-container');
-        if($(this).attr('pageMove') != null) {window.open('https://chrome.google.com/webstore/detail/dcsimpler/kgpiejjjpjkcijopeabfleliifbhfnci?hl=ko'); return;}
+    delegate(document, 'click', '.item', function () {
+        const index = this.getAttribute('index');
+        if(this.getAttribute('pageMove') != null) {window.open('https://chrome.google.com/webstore/detail/dcsimpler/kgpiejjjpjkcijopeabfleliifbhfnci?hl=ko'); return;}
 
-        menus
-            .removeClass('clicked')
-            .filter('[index~='+index+']')
-            .addClass('clicked');
-
-        containers
-            .hide()
-            .filter('[index~='+index+']')
-            .show();
+        qsa('.item').forEach((item) => item.classList.toggle('clicked', item.getAttribute('index') === index));
+        qsa('.menu-container').forEach((container) => setDisplay(container, container.getAttribute('index') === index));
     });
 
-    $('.editText#input-layout-minimize').val(config.minimizeLayout_filter);
-    $(document).on('click', '.saveText#button-layout-minimize', async function () {
-        const element = $(this).prev();
-        const value = element.val();
+    qs('.editText#input-layout-minimize').value = config.minimizeLayout_filter;
+    delegate(document, 'click', '.saveText#button-layout-minimize', async function () {
+        const element = this.previousElementSibling;
+        const value = element.value;
         if( value.length === 0 ) {
             config.minimizeLayout_filter = '.nothingElement';
             flashOk(element);
@@ -387,31 +357,29 @@ function bindOptionHandlers(charts) {
             return;
         }
 
-        element.css('color', 'inherit');
+        element.style.color = 'inherit';
         flashOk(element);
         config.minimizeLayout_filter = value;
         await saveCurrentConfig();
     });
 
-    $(document).on('click', 'input.saveText.blac', function () {
-        $('.saveText.blac').removeClass('selected');
-        $(this).addClass('selected');
+    delegate(document, 'click', 'input.saveText.blac', function () {
+        qsa('.saveText.blac').forEach((button) => button.classList.remove('selected'));
+        this.classList.add('selected');
 
-        const index = $(this).attr('index');
-        $('.smallbox.blacklist').hide();
-        $('.smallbox.blacklist.'+index).show();
+        const index = this.getAttribute('index');
+        qsa('.smallbox.blacklist').forEach((box) => setDisplay(box, false));
+        qsa('.smallbox.blacklist.'+index).forEach((box) => setDisplay(box, true));
     });
-    $('.saveText.blac.nickname').trigger('click');
+    qs('.saveText.blac.nickname')?.click();
 
-    $(document).on('click', '.saveText.blacklist', async function () {
+    delegate(document, 'click', '.saveText.blacklist', async function () {
         const d = this.classList[2];
-        console.log(d);
-        let value = $('textarea.blacklist.'+d).val();
-
-        const element = $('.box.child.blacklist, textarea.blacklist.'+d);
+        const textarea = qs('textarea.blacklist.'+d);
+        let value = textarea.value;
+        const element = [qs('.box.child.blacklist'), textarea];
         value = value.replace(/[\n\r]+/g, '|');
-        console.log(value);
-        if(value[value.length-1] === '|') { value = value.slice(0,value.length-1)}
+        if(value[value.length-1] === '|') value = value.slice(0,value.length-1);
 
         if( value.length === 0 ) {
             config.blacklist_filter[d] = 'a^';
@@ -420,12 +388,11 @@ function bindOptionHandlers(charts) {
             return;
         }
         try {
-            const z = new RegExp(value);
-            element.css('color', 'inherit');
+            new RegExp(value);
+            element.forEach((el) => { if (el) el.style.color = 'inherit'; });
             flashOk(element);
         }
         catch (e) {
-            console.log(e);
             flashErr(element);
             return;
         }
@@ -434,46 +401,42 @@ function bindOptionHandlers(charts) {
         await saveCurrentConfig();
     });
 
-    $(document).on('keydown', 'textarea.blacklist', function(event){
-        if(event.keyCode === 13 && event.shiftKey){
-            const tag1 = '.'+this.classList[1];
-            const tag2 = '.'+this.classList[2];
-            $('.saveText'+tag1+tag2).trigger('click');
+    delegate(document, 'keydown', 'textarea.blacklist', function(event){
+        if(event.key === 'Enter' && event.shiftKey){
+            qs('.saveText.'+this.classList[1]+'.'+this.classList[2])?.click();
             event.preventDefault();
             event.stopPropagation();
         }
     });
 
-    $(document).on('click', '.saveText.userMemo.save', async function () {
-        const textArea = $('.editText.userMemo');
-        const z = $('.box.child.userMemo, .editText.userMemo');
-        z.css('color', 'inherit');
-        flashOk(z);
-        config.userMemo_filter = textArea.val();
+    delegate(document, 'click', '.saveText.userMemo.save', async function () {
+        const textArea = qs('.editText.userMemo');
+        const targets = [qs('.box.child.userMemo'), textArea];
+        targets.forEach((el) => { if (el) el.style.color = 'inherit'; });
+        flashOk(targets);
+        config.userMemo_filter = textArea.value;
         await saveCurrentConfig();
     });
 
-    $(document).on('keydown', 'textarea.userMemo', function(event){
-        if(event.keyCode === 13 && event.shiftKey){
-            $('.saveText.userMemo.save').trigger('click');
+    delegate(document, 'keydown', 'textarea.userMemo', function(event){
+        if(event.key === 'Enter' && event.shiftKey){
+            qs('.saveText.userMemo.save')?.click();
             event.preventDefault();
             event.stopPropagation();
         }
     });
 
-    // 내보내기/가져오기 — 버튼이 속한 섹션(.smallbox 또는 .box.child)의 textarea를 대상으로 한다.
     function findSectionTextarea(button) {
         const section = button.closest('.smallbox') || button.closest('.box.child');
         return section ? section.querySelector('textarea') : null;
     }
     function exportFilename(textarea) {
-        // 예: "editText blacklist ip" → "dcsimpler-blacklist-ip.txt"
         const classes = Array.from(textarea.classList).filter(function (c) { return c !== 'editText'; });
         const suffix = classes.length ? classes.join('-') : 'filter';
         return 'dcsimpler-' + suffix + '.txt';
     }
 
-    $(document).on('click', '.saveText.export', function () {
+    delegate(document, 'click', '.saveText.export', function () {
         const textarea = findSectionTextarea(this);
         if (!textarea) return;
         const blob = new Blob([textarea.value], { type: 'text/plain;charset=utf-8' });
@@ -487,7 +450,7 @@ function bindOptionHandlers(charts) {
         URL.revokeObjectURL(url);
     });
 
-    $(document).on('click', '.saveText.import', function () {
+    delegate(document, 'click', '.saveText.import', function () {
         const textarea = findSectionTextarea(this);
         if (!textarea) return;
         const picker = document.createElement('input');
@@ -499,12 +462,10 @@ function bindOptionHandlers(charts) {
             const reader = new FileReader();
             reader.onload = function () {
                 textarea.value = String(reader.result).replace(/\r\n/g, '\n');
-                $(textarea).trigger('input'); // 라인번호·높이 갱신
+                trigger(textarea, 'input');
                 flashOk(textarea);
             };
-            reader.onerror = function () {
-                alert('파일을 불러오지 못했습니다.');
-            };
+            reader.onerror = function () { alert('파일을 불러오지 못했습니다.'); };
             reader.readAsText(file);
         });
         picker.click();
@@ -524,29 +485,20 @@ function bindOptionHandlers(charts) {
         }
     });
 
-
-    $(document).on('keydown', 'input[class~=editText]', function (event) {
-        if(event.keyCode === 13){
-            $(this).next().trigger('click');
-        }
+    delegate(document, 'keydown', 'input.editText', function (event) {
+        if(event.key === 'Enter') this.nextElementSibling?.click();
     });
 
-    document.querySelector('.upload-image-delegator').addEventListener('click', function () {
-       document.querySelector('#upload-image').click();
-    });
-
-    document.querySelector('.upload-image-deletor').addEventListener('click', async function () {
+    qs('.upload-image-delegator')?.addEventListener('click', function () { qs('#upload-image')?.click(); });
+    qs('.upload-image-deletor')?.addEventListener('click', async function () {
         await chrome.storage.local.set({ autoInsertImageData: {} });
-        document.querySelector('.image-name').innerHTML = '설정된 이미지 파일이 없습니다';
+        qs('.image-name').innerHTML = '설정된 이미지 파일이 없습니다';
     });
 
-    document.querySelector('#upload-image').addEventListener('change', function (event) {
+    qs('#upload-image')?.addEventListener('change', function (event) {
         const file = event.target.files[0];
         if (!file) return;
-
-        // data URL(base64)은 원본보다 약 33% 크고, chrome.storage.local의
-        // 기본 용량(약 10MB)을 넘으면 set()이 조용히 실패한다. 미리 검증한다.
-        const MAX_IMAGE_BYTES = 7 * 1024 * 1024; // 원본 7MB → data URL 약 9.3MB
+        const MAX_IMAGE_BYTES = 7 * 1024 * 1024;
         if (file.size > MAX_IMAGE_BYTES) {
             alert('이미지 용량이 너무 큽니다. 7MB 이하 파일을 사용해주세요.');
             event.target.value = '';
@@ -561,7 +513,7 @@ function bindOptionHandlers(charts) {
             imageData.filename = file.name;
             try {
                 await chrome.storage.local.set({ autoInsertImageData: imageData });
-                document.querySelector('.image-name').innerHTML = file.name;
+                qs('.image-name').innerHTML = file.name;
             } catch (e) {
                 console.error(e);
                 alert('이미지를 저장하지 못했습니다. 파일 용량을 줄여 다시 시도해주세요.');
@@ -573,24 +525,22 @@ function bindOptionHandlers(charts) {
     const recreateCharts = async function () {
         history = await readHistory();
         charts.chart.destroy();
-        charts.chart = setupChart(document.getElementById('weekly-chart'), 7);
+        charts.chart = setupChart(qs('#weekly-chart'), 7);
         charts.monthChart.destroy();
-        charts.monthChart = setupChart(document.getElementById('monthly-chart'), 30);
+        charts.monthChart = setupChart(qs('#monthly-chart'), 30);
         charts.doughnutChart.destroy();
-        charts.doughnutChart = setupDoughnutChart(document.getElementById('doughnut-chart'));
+        charts.doughnutChart = setupDoughnutChart(qs('#doughnut-chart'));
     };
 
-    $(document).on('click', '#so-clear', async function () {
+    delegate(document, 'click', '#so-clear', async function () {
         const confirmWindow = confirm('기록을 삭제하시겠습니까?');
         if (confirmWindow) {
             await clearHistory(30);
             await recreateCharts();
         }
-        else {
-        }
     });
 
-    $(document).on('click', '#so-refresh', async function () {
+    delegate(document, 'click', '#so-refresh', async function () {
         await recreateCharts();
     });
 }
@@ -599,9 +549,13 @@ async function initOptions() {
     config = await getConfig();
     history = await readHistory();
     version = chrome.runtime.getManifest().version;
-    $('#bg').css('opacity','0').css('z-index','-999');
-    $('#footer').html('dcsimpler_v.'+version);
-    $('.menu-container[index="5"] p').first().prepend('<p>ver.'+version+'</p>');
+    const bg = qs('#bg');
+    if (bg) {
+        bg.style.opacity = '0';
+        bg.style.zIndex = '-999';
+    }
+    qs('#footer').innerHTML = 'dcsimpler_v.'+version;
+    qs('.menu-container[index="5"] p')?.insertAdjacentHTML('afterbegin', '<p>ver.'+version+'</p>');
     await addUpdateNotification(updateDescription);
     initUsermemo();
     initBlacklist();
@@ -610,24 +564,24 @@ async function initOptions() {
     loadUpdatelog();
 
     const charts = {
-        chart: setupChart(document.getElementById('weekly-chart'), 7),
-        monthChart: setupChart(document.getElementById('monthly-chart'), 30),
-        doughnutChart: setupDoughnutChart(document.getElementById('doughnut-chart'))
+        chart: setupChart(qs('#weekly-chart'), 7),
+        monthChart: setupChart(qs('#monthly-chart'), 30),
+        doughnutChart: setupDoughnutChart(qs('#doughnut-chart'))
     };
 
     testfield({
-        nickname : document.querySelector('.test-field.nickname'),
-        id : document.querySelector('.test-field.id'),
-        ip : document.querySelector('.test-field.ip'),
-        keyword : document.querySelector('.test-field.keyword')
+        nickname : qs('.test-field.nickname'),
+        id : qs('.test-field.id'),
+        ip : qs('.test-field.ip'),
+        keyword : qs('.test-field.keyword')
     });
 
-    document.getElementById('goShortCut').addEventListener('click', function() {
+    qs('#goShortCut')?.addEventListener('click', function() {
         chrome.tabs.create({url:'chrome://extensions/shortcuts'});
     });
 
     const { autoInsertImageData = {} } = await chrome.storage.local.get('autoInsertImageData');
-    document.querySelector('.image-name').innerHTML = autoInsertImageData.filename || '설정된 이미지 파일이 없습니다';
+    qs('.image-name').innerHTML = autoInsertImageData.filename || '설정된 이미지 파일이 없습니다';
 
     bindOptionHandlers(charts);
 }
@@ -637,4 +591,3 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error(e);
     });
 });
-
