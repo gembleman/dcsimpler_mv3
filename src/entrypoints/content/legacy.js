@@ -296,7 +296,7 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
                 }
             });
             // click event from reply
-            $(document.getElementById('dcs_iframe').contentWindow.document).on('click', '.repley_add, repley_add_vote, .dccon_list_box .img_dccon', function (){
+            $(document.getElementById('dcs_iframe').contentWindow.document).on('click', '.repley_add, .repley_add_vote, .dccon_list_box .img_dccon', function (){
                 app.sendToBackground('reply');
                 $('#dcs_dialog').parent().focus();
             });
@@ -308,7 +308,8 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
 
             // when load to iframe without comment contents, forcing refresh comments
             var iframeDocument = document.getElementById('dcs_iframe').contentWindow.document;
-            var numberOfcommentsFromDialog = document.querySelector('.gall_comment').innerHTML.replace(/[^0-9]/g, "");
+            var dialogCommentBadge = document.querySelector('.gall_comment');
+            var numberOfcommentsFromDialog = dialogCommentBadge ? dialogCommentBadge.innerHTML.replace(/[^0-9]/g, "") : "0";
             var commentCountElement = iframeDocument.querySelector('span[id^=comment]');
             var numberOfcommentsFromiFrame = commentCountElement ? commentCountElement.innerText.replace(/[^0-9]/g, "") : "0";
 
@@ -467,7 +468,9 @@ let openDialog = function(position, callback) {
     opendDialog.css('background', postprocessing.dialogBackgroundColor);
     opendDialog.append('<div class="spinner_wrap"></div>');
     opendDialog.on('click', '.gall_comment', function () {  // move to iframe comments section
-        document.getElementById('dcs_iframe').contentWindow.document.querySelector("#focus_cmt").scrollIntoView();
+        var iframe = document.getElementById('dcs_iframe');
+        var focusCmt = iframe && iframe.contentWindow.document.querySelector("#focus_cmt");
+        if (focusCmt) focusCmt.scrollIntoView();
     });
     $(document).data('t_vch2','');
 
@@ -712,15 +715,14 @@ let manipulateDOM = {
         if(document.querySelector('#io-autoRefresh')) {
             document.querySelector('#io-autoRefresh').addEventListener('click', function () {
                 let refreshRate = Number(window.prompt('자동 새로고침 주기를 설정해주세요 \n 초 단위, 0 이하의 숫자 입력 시 초기화됩니다', '0'));
-                console.log(this);
-                if (isNaN(refreshRate) || refreshRate > 0) {
+                clearInterval(this.intervalID);
+                if (!isNaN(refreshRate) && refreshRate > 0) {
                     this.classList.add('-running');
                     this.intervalID =  setInterval (function () {
                         document.querySelector('.btn_normal').click();
                     }, refreshRate*1000);
                 } else {
                     this.classList.remove('-running');
-                    clearInterval(this.intervalID);
                 }
             });
         }
