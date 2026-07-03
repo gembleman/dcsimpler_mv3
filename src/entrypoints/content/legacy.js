@@ -174,8 +174,6 @@ let contentMemo = {
 jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
     var dialog = document.querySelector('#dcs_dialog');
     if(!url || !dialog) return false;
-
-    console.log(`\t IFRAME URL : ${url}`);
     var innerStyle = `<style>
                                 html {
                                     overflow: hidden;
@@ -257,8 +255,7 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
                 $('#dcs_iframe').height(document.getElementById('dcs_iframe').contentWindow.document.body.scrollHeight+20);     // resize iframe
                 $('#dcs_iframe').width(document.getElementById('dcs_iframe').contentWindow.document.body.scrollWidth);
                 $('#dcs_dialog').parent().focus();
-            }catch (e) {
-                console.log(e);
+            } catch (e) {
                 console.warn(new Date()+"IFRAME ERR : "+e.message);
                 $('#dcs_iframe').width(555);
                 $('#dcs_iframe').off('load');
@@ -266,31 +263,29 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
                     $('#dcs_iframe').attr('src', '');
                     setTimeout(f, 1000);
                     return 0;
-                } else {
-                    console.warn('---------------');
-                    return 0;
                 }
+                return 0;
             }
 
             // keybinding in iframe
             $(document.getElementById('dcs_iframe').contentWindow.document).keydown(function(event){
                 var onTextarea = $(event.target).is("input, textarea");
                 var withoutCtrlKey = !event.ctrlKey;
+                var key = normalizeKey(event);
 
                 //c : go reply panel
-                if(event.keyCode === keyEnum.C && withoutCtrlKey && !onTextarea){
+                if(key === keyEnum.C && withoutCtrlKey && !onTextarea){
                     $('#avoiding_c').focus();                   // avoding keyInput when hotkey 'C'
                     setTimeout(function () {
                         $(document.getElementById('dcs_iframe').contentWindow.document).find("textarea").focus();
                     },10);
                 }
                 // Q : toggle
-                else if(event.keyCode === keyEnum.Q && withoutCtrlKey && !onTextarea) {
+                else if(key === keyEnum.Q && withoutCtrlKey && !onTextarea) {
                     $('#viewToggle').trigger("click");
                 }
                 // ESC : close dialog
-                else if(event.keyCode === keyEnum.ESC && withoutCtrlKey) {
-                    console.log(history);
+                else if(key === keyEnum.ESC && withoutCtrlKey) {
                     history.replaceState({prev: 'replace'}, 'title', history.state.prev);
                     $(".ui-dialog-titlebar-close").trigger('click');
                 }
@@ -324,7 +319,6 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
         let mo = new MutationObserver(process);
         mo.observe(selector, {subtree: true, childList:true, attributeOldValue: true, attributes: true});
         var originHeight = selector.body.scrollHeight;
-        //var w = document.getElementById('dcs_iframe').contentWindow.document.body.scrollWidth;
         function process(mutations) {
             //listen page move
             for(let i=0, j=mutations.length ; i < j ; i++){
@@ -336,11 +330,8 @@ jQuery.fn.insertCommentIframe = function (url, timeout = 500) {
             }
             try {
                 if (document.getElementById('dcs_iframe') === null) return false;
-                var mutatedHeight =  document.getElementById('dcs_iframe').contentWindow.document.body.scrollHeight;
-                originHeight != mutatedHeight;
             }
             catch (e) {
-                console.log(document.getElementById('dcs_iframe'));
                 console.error(e);
                 return 0;
             }
@@ -437,8 +428,6 @@ let openDialog = function(position, callback) {
     let opendDialog;
     $('body > #dcs_dialog').remove();
     $('body').prepend(d.clone());
-
-    console.log('\t %cOPEN DIALOG', "color: blue; font-weight: bold");
     opendDialog = $('#dcs_dialog').dialog({
         title: "",
         modal: true,
@@ -453,7 +442,7 @@ let openDialog = function(position, callback) {
         },
         close: function(){
             history.replaceState({ prev: 'replace' }, 'title', beforeUrl);
-            $("html").css("overflow", "overlay");
+            $("html").css("overflow", "auto");
         },
         beforeClose: function () {
             $("#dcs_dialog").remove();
@@ -463,7 +452,6 @@ let openDialog = function(position, callback) {
         autoOpen: false
     });
     opendDialog.parent().css({position:"fixed", background : postprocessing.dialogBackgroundColor}).end().dialog('open');
-    // opendDialog.css('height', '800px');
     opendDialog.css('height', '84vh');
     opendDialog.css('background', postprocessing.dialogBackgroundColor);
     opendDialog.append('<div class="spinner_wrap"></div>');
@@ -486,7 +474,6 @@ var ArticleController = function () {
 var ac = new ArticleController();
 
 const ERR_404 = '404';
-const ERR_200 = '200';
 const ERR_503 = '503';
 
 let requestArticle = async function (url, dialogTemplate = $('#dcs_dialog')) {
@@ -497,14 +484,12 @@ let requestArticle = async function (url, dialogTemplate = $('#dcs_dialog')) {
         ac.signal = ac.controller.signal;
         history.replaceState({ prev: location.href }, 'title', url);
         let res = await fetching(url + "view_content_wrap", ac);
-        console.log(res);
 
         if(!res.ok) {
             throw new Error (res.status);
         }
         app.sendToBackground('view');
         let articleWrap = $(await res.text()).find(".view_content_wrap");
-        //if (articleWrap.length === 0) throw new Error(ERR_200);
         let article = articleWrap[0].outerHTML;
         dialogTemplate.html("").append(article).insertCommentIframe(url);
 
@@ -513,7 +498,6 @@ let requestArticle = async function (url, dialogTemplate = $('#dcs_dialog')) {
         postprocessing.blurImage();
 
     } catch (error) {
-        console.log(error.message);
         if(error.message === ERR_404) {
             dialogTemplate.html(errorPage(error.message, '페이지를 불러오는데 실패하였습니다', '삭제된 글이거나 존재하지 않는 게시글 주소입니다'));
         }
@@ -525,8 +509,6 @@ let requestArticle = async function (url, dialogTemplate = $('#dcs_dialog')) {
         }
         $('#errorImage').on('click', () => {
             requestArticle(url, dialogTemplate);
-            //fetching(url + "view_content_wrap", ac)
-            
         });
     }
 
@@ -562,13 +544,7 @@ app.sendToBackground = function (msg) {
 }
 
 app.pruningUrl = () => {
-    console.log(location);
     let o = {};
-    // let pathname = location.pathname.replace(/\/+$/, '').split('/');
-    // jQuery.each(pathname, function (key, value) {
-    //     if(value.length === 0) return;
-    //     o[value] = true;
-    // });
     o = parsePathname2(location.pathname);
     o.pathname = parsePathname(location.pathname).reverse();
     o.query = parseQuery(location.search);
@@ -583,10 +559,6 @@ app.pruningUrl = () => {
     o.url.goRecommend = o.url.regular + queryGlue + "page=1&exception_mode=recommend";
     o.url.goNotice = o.url.regular + queryGlue + "page=1&exception_mode=notice";
     return o;
-
-    function parseLocation(location, sperator) {
-        return location.split(sperator);
-    }
 
     function parsePathname2(str) {
         return str.replace(/^\/+|\/+$/g, "").split("/").reduce((acc, cuv) => (acc[cuv] = true, acc), {});
@@ -803,13 +775,11 @@ let manipulateDOM = {
     },
     hotkeybinding: () => {      // 핫키바인딩을 아이프레임과 통합할 것
         $("html").keydown(function(event) { //단축키 : c댓글이동, w글작성 q차단토글 r새로고침 t상단으로
-            var divLoc = $('.cmt_write').offset();
+            var key = normalizeKey(event);
 
             //c : go reply panel
-            if(event.keyCode === 67 && !event.ctrlKey) {
-                if($(event.target).is("input, textarea")) {
-                }
-                else if (location.dcs.lists && document.querySelector('#dcs_dialog')) {
+            if(key === keyEnum.C && !event.ctrlKey && !$(event.target).is("input, textarea")) {
+                if (location.dcs.lists && document.querySelector('#dcs_dialog')) {
                     $(document.getElementById('dcs_iframe').contentWindow.document).find("textarea").focus();
                 }
                 else if (location.dcs.view) {
@@ -818,45 +788,35 @@ let manipulateDOM = {
                 }
             }
             //w : go write page
-            else if(event.keyCode === 87 && !event.ctrlKey) {
-                if($(event.target).is("input, textarea, .ui-dialog")) {}
-                else $('#btn_write').trigger("click");
+            else if(key === keyEnum.W && !event.ctrlKey) {
+                if(!$(event.target).is("input, textarea, .ui-dialog")) $('#btn_write').trigger("click");
             }
             //q : toggle blacklistView
-            else if(event.keyCode === 81 && !event.ctrlKey) {
-                if($(event.target).is("input, textarea")) {}
-                else $('#viewToggle').trigger("click");
+            else if(key === keyEnum.Q && !event.ctrlKey) {
+                if(!$(event.target).is("input, textarea")) $('#viewToggle').trigger("click");
             }
             //r : refresh gallery
-            else if(event.keyCode === 82 && !event.ctrlKey) {
-                if($(event.target).is("input, textarea, .ui-dialog")) {}
-                else $('.btn_normal').first().trigger("click");
+            else if(key === keyEnum.R && !event.ctrlKey) {
+                if(!$(event.target).is("input, textarea, .ui-dialog")) $('.btn_normal').first().trigger("click");
             }
             //t : go page top
-            else if(event.keyCode === 84 && !event.ctrlKey) {
-                if($(event.target).is("input, textarea, .ui-dialog")) {}
-                else $('html, body').animate({scrollTop : 0}, 400);
+            else if(key === keyEnum.T && !event.ctrlKey) {
+                if(!$(event.target).is("input, textarea, .ui-dialog")) $('html, body').animate({scrollTop : 0}, 400);
             }
             // a : back page list
-            else if(event.keyCode === 65 && !event.ctrlKey) {
+            else if(key === keyEnum.A && !event.ctrlKey) {
                 if(!$(event.target).is("input, textarea, .ui-dialog")) {
                     var prev = $('body').find('.bottom_paging_box').children('em').prev();
                     if(prev.end().length === 0) prev = $('body').find('.bottom_paging_box').children('a').first();
                     prev.click();
                 }
-                else if($('#dcs_dialog').length) {
-
-                }
             }
             // s: forward page list
-            else if(event.keyCode === 83 && !event.ctrlKey) {
+            else if(key === keyEnum.S && !event.ctrlKey) {
                 if(!$(event.target).is("input, textarea, .ui-dialog")) {
                     var next = $('body').find('.bottom_paging_box').children('em').next();
                     if(next.end().length === 0) next = $('body').find('.bottom_paging_box').children('a').last();
                     next.click();
-                }
-                else if($('#dcs_dialog').length) {
-
                 }
             }
         });
@@ -929,7 +889,6 @@ postprocessing.blurImage = function () {
     if(config.blurImage === false) return;
     var target = $('.gallview_contents').children('.inner');
     var select = $(target).find('img, video');
-    console.log(select);
     target.find('img').removeAttr('onclick');
     select.attr('blur', 'y');
     select.on('click', function (event) {
@@ -953,7 +912,7 @@ postprocessing.avoidServiceCode = function () {
     $('#subject').focus().trigger('click')
     $('.write_infobox').focus().trigger('click');
     $('#subject').focus().trigger('click').keydown(function (event) {
-        if(event.keyCode === 9) {
+        if(normalizeKey(event) === keyEnum.TAB) {
             event.preventDefault();
             $('#tx_canvas_wysiwyg').focus();
         }
@@ -996,22 +955,27 @@ filter = {
     usermemo: { ip: [], tag: [] }
 };
 keyEnum = {
-    C:67,
-    Q:81,
-    R:82,
-    A:65,
-    S:83,
-    ESC:27
+    C: 'c',
+    Q: 'q',
+    R: 'r',
+    A: 'a',
+    S: 's',
+    W: 'w',
+    T: 't',
+    ESC: 'Escape',
+    TAB: 'Tab'
 };
 
 let calltype;
+function normalizeKey(event) {
+    return event.key.length === 1 ? event.key.toLowerCase() : event.key;
+}
+
 /** only run when has pathname **/
 main = function () {
     let callTypeList = ['view', 'lists', 'write', 'modify'];
-    let extensionType = chrome.runtime.id === 'kgpiejjjpjkcijopeabfleliifbhfnci'? 'pub' : 'dev';
     location.dcs = app.pruningUrl();
     location.calltype = calltype = location.dcs.pathname[0];
-    console.log('DCSimpler ⚡ version '+chrome.runtime.getManifest().version+'/'+extensionType+'/'+calltype);
 
     if(!callTypeList.includes(calltype)) {
         return exitMain();
@@ -1026,7 +990,6 @@ main = function () {
     });
 
     const onReady = async function() {
-        window.dcs = 3;
         if(!document.body)
             return exitMain();  //avoiding redirect error
         if(document.body.innerHTML.length === 0 || document.querySelector('.noaccess_wrap') !== null)
