@@ -8,7 +8,7 @@ export const defaultConfig = {
   minimizeLayout: true,
   addRightSideVisitHistory: true,
   minimizeLayout_filter:
-    '.gnb_bar, .concept_wrap, .issue_contentbox, .rightbanner, .content_box, .dcfoot, .gall_issuebox, .visit_history',
+    '.gnb_bar, .concept_wrap, .issue_contentbox, .rightbanner, .content_box, .dcfoot, .gall_issuebox, #visit_history',
   upScale: false,
   userMemo: false,
   autoInsertImage: false,

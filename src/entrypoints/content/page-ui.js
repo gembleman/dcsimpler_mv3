@@ -1,4 +1,4 @@
-import { insertAfter, strToNode } from './common';
+import { insertAfter } from './common';
 import { pageContext } from './context';
 import { delegate, qsa } from './dom';
 import { contentBlock, contentMemo } from './filters';
@@ -114,31 +114,91 @@ export let manipulateDOM = {
         document.querySelector('#dcs_nav #io-progress')?.setAttribute('t', status);
     },
     visitHistory : function () {
-        let createGalleryElements = function (latelyGalleries) {
-            if(!Array.isArray(latelyGalleries)) return '';
-            return latelyGalleries.map( (elem, idx) => '<div index='+idx+'><a href="//'+elem.link+'"> '+elem.name+' </a><div id="dcs_closebox"></div></div>').join('');
+        let normalizeLink = function (href) {
+            if (!href) return '';
+            return String(href).replace(/^https?:\/\//, '').replace(/^\/\//, '');
         };
-        let visitHistoryHTML = function (lately_gallery_array) {
-            return '<div id="dcs_visit_history">'+createGalleryElements(lately_gallery_array)+'</div>';
+
+        let createHref = function (link) {
+            if (!link) return '#';
+            if (/^https?:\/\//.test(link) || link.startsWith('//')) return link;
+            return '//'+link.replace(/^\/+/, '');
+        };
+
+        let readLatelyGallery = function () {
+            let stored;
+            try {
+                stored = JSON.parse(localStorage.lately_gallery);
+            } catch (e) {
+                stored = [];
+            }
+            if (!Array.isArray(stored)) stored = [];
+            let seen = new Set();
+            return stored.map(function (elem) {
+                let link = normalizeLink(elem?.link);
+                let name = (elem?.name ?? '').trim();
+                if (!link || !name || seen.has(link)) return null;
+                seen.add(link);
+                return { name, link, id: elem?.id, type: elem?.type };
+            }).filter(Boolean);
+        };
+
+        let findDeleteButton = function (elem) {
+            if (!elem?.id) return null;
+            return qsa('#visit_history .btn_visit_del, #visit_history_lyr .btn_visit_del').find(function (button) {
+                return button.getAttribute('data-id') === elem.id
+                    && (!elem.type || button.getAttribute('data-gtype') === elem.type);
+            }) ?? null;
+        };
+
+        let createGalleryElements = function (latelyGalleries) {
+            let fragment = document.createDocumentFragment();
+            if(!Array.isArray(latelyGalleries)) return fragment;
+            latelyGalleries.forEach(function (elem, idx) {
+                let wrapper = document.createElement('div');
+                wrapper.setAttribute('index', idx);
+
+                let anchor = document.createElement('a');
+                anchor.href = createHref(elem.link);
+                anchor.textContent = ' '+(elem.name ?? '')+' ';
+                wrapper.append(anchor);
+
+                let closeBox = document.createElement('div');
+                closeBox.id = 'dcs_closebox';
+                wrapper.append(closeBox);
+
+                fragment.append(wrapper);
+            });
+            return fragment;
+        };
+
+        let renderGalleryElements = function (container, latelyGalleries) {
+            container.replaceChildren(createGalleryElements(latelyGalleries));
         };
 
         if(config.addRightSideVisitHistory === false) return false;
-        let latelyGallery;
-        try {
-            latelyGallery = JSON.parse(localStorage.lately_gallery);
-        } catch (e) {
-            latelyGallery = [];
-        }
-        if (!Array.isArray(latelyGallery)) latelyGallery = [];
+        let latelyGallery = readLatelyGallery();
         const loginBox = document.querySelector('#login_box');
-        if (loginBox) insertAfter(strToNode(visitHistoryHTML(latelyGallery)), loginBox);
+        if (loginBox) {
+            document.querySelector('#dcs_visit_history')?.remove();
+            let visitHistoryNode = document.createElement('div');
+            visitHistoryNode.id = 'dcs_visit_history';
+            renderGalleryElements(visitHistoryNode, latelyGallery);
+            insertAfter(visitHistoryNode, loginBox);
+        }
 
         document.querySelector('#dcs_visit_history')?.addEventListener('click', function (event) {
             if (event.target.id !== 'dcs_closebox') return false;
             let index = event.target.parentElement.attributes.index.value;
+            let removed = latelyGallery[index];
             latelyGallery.splice(index, 1);
-            localStorage.lately_gallery = JSON.stringify(latelyGallery);
-            document.querySelector('#dcs_visit_history').innerHTML = createGalleryElements(latelyGallery);
+            try {
+                localStorage.lately_gallery = JSON.stringify(latelyGallery.map(function (elem) {
+                    return { id: elem.id, name: elem.name, type: elem.type, link: elem.link };
+                }));
+            } catch (e) { /* localStorage 사용 불가 시 무시 */ }
+            findDeleteButton(removed)?.click();
+            renderGalleryElements(document.querySelector('#dcs_visit_history'), latelyGallery);
         });
     },
     outerButton: () => {
