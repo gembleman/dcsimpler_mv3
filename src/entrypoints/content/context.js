@@ -15,7 +15,7 @@ export function createPageContext(locationRef = location) {
     url.searchParams.delete('page');
     url.searchParams.delete('exception_mode');
     url.hash = '';
-    context.url.regular = url.toString().replace(/?$/, '');
+    context.url.regular = url.toString().replace(/\?$/, '');
     const queryGlue = context.url.regular.includes('?') ? '&' : '?';
     context.url.goNormal = context.url.regular + queryGlue + 'page=1';
     context.url.goRecommend = context.url.regular + queryGlue + 'page=1&exception_mode=recommend';
