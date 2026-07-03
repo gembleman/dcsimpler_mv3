@@ -19,6 +19,9 @@ build/
 .wxt/
 .output/
 
+# Playwright MCP 검증 산출물
+.playwright-mcp/
+
 # 로그
 *.log
 npm-debug.log*
