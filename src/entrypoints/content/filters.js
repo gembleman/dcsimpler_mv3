@@ -1,0 +1,156 @@
+import { pageContext } from './context';
+import { config, filter } from './state';
+
+// contentBlocking
+export let contentBlock = {
+    convert : function (input) {
+        let o = {};
+        Object.keys(input).forEach(elem => o[elem] = new RegExp(input[elem], "g"));
+        return o;
+    },
+    toContent : function (effect) {
+        let that = this;
+        if(config.blacklist === false) return false;
+        const tbody = document.querySelector('tbody');
+        if (!tbody) return false;
+        [ ...tbody.querySelectorAll('.ub-content') ].map(function (article) {
+            let [ ubWriter, ubWord ]  = [ article.querySelector('.ub-writer'), article.querySelector('.ub-word') ];
+            if (!ubWriter || !ubWord) return false;
+            let contentBlockReason = undefined;
+            let writerIP, writerID, writerNickName, contentText;
+            let gallNum, gallSubject;
+
+            writerID = ubWriter.getAttribute('data-uid');
+            writerIP = ubWriter.getAttribute('data-ip');
+            writerNickName = ubWriter.getAttribute('data-nick');
+            contentText = ubWord !== null ? ubWord.innerText : undefined;
+            gallNum = article.querySelector('.gall_num');
+            gallSubject = article.querySelector('.gall_subject');
+
+            let isCurrentArticle = !gallNum || gallNum.innerHTML.indexOf("class=\"sp_img crt_icon\"") === -1;
+
+            let noticeBlock = config.blacklist_notice === true;
+
+            if (noticeBlock && ubWord.getAttribute('user_name') === '운영자') {
+                contentBlockReason = 'notice';
+            }
+            else if (noticeBlock && gallNum && gallNum.innerHTML.match(/^[^0-9]{1,}$/) && isCurrentArticle) {
+                contentBlockReason = 'notice';
+            }
+            else if (noticeBlock && gallSubject && gallSubject.textContent.match(/공지|뉴스|설문|AD/)) {
+                contentBlockReason = 'notice';
+            }
+            else if (writerIP && writerIP.match(filter.blacklist['ip'])) {
+                contentBlockReason = 'ip';
+            }
+            else if (writerID && writerID.match(filter.blacklist['id'])) {
+                contentBlockReason = 'id';
+            }
+            else if (writerNickName && writerNickName.match(filter.blacklist['nickname'])) {
+                contentBlockReason = 'nickname';
+            }
+            else if (contentText !== undefined && contentText.match(filter.blacklist['keyword'])) {
+                contentBlockReason ='keyword';
+            }
+
+            if (contentBlockReason) {
+                article.setAttribute('blackedUser', 'qvz');
+                article.setAttribute('contentBlockReason', contentBlockReason);
+                that.toggleContentDisplay(article, effect);
+            }
+        });
+    },
+    toComment : function (effect) {
+        let that = this;
+        if (config.blacklist === false) return false;
+        if (pageContext.calltype === "lists" && !document.querySelector('#dcs_iframe')) return false;
+        let reference = pageContext.calltype === "lists" ? document.querySelector('#dcs_iframe').contentWindow.document.body : document.body;
+        [ ...reference.querySelectorAll('.view_comment li[class^=ub-content]') ].map(function (comment) {
+            let [ ubWriter, ubWord ] = [ comment.querySelector('.ub-writer'), comment.querySelector('.ub-word') ];
+            if (!ubWriter || !ubWord) return false;
+            let contentBlockReason = undefined;
+            let writerIP, writerID, writerNickName, commentText;
+
+            writerIP = ubWriter.getAttribute('data-ip');
+            writerID = ubWriter.getAttribute('data-uid');
+            writerNickName = ubWriter.getAttribute('data-nick');
+            commentText = ubWord !== null ? ubWord.innerText : undefined;
+
+            if (writerIP && writerIP.match(filter.blacklist['ip'])) {
+                contentBlockReason = 'ip';
+            }
+            else if (writerID && writerID.match(filter.blacklist['id'])) {
+                contentBlockReason = 'id';
+            }
+            else if (writerNickName && writerNickName.match(filter.blacklist['nickname'])) {
+                contentBlockReason = 'nickname';
+            }
+            else if (commentText !== undefined && commentText.match(filter.blacklist['keyword'])) {
+                contentBlockReason ='keyword';
+            }
+            else if (writerNickName === '댓글돌이') {
+                contentBlockReason = 'notice';
+            }
+
+            if (contentBlockReason) {
+                comment.setAttribute('blackedUser', 'qvz');
+                comment.setAttribute('contentBlockReason', contentBlockReason);
+                that.toggleContentDisplay(comment, effect);
+            }
+        });
+    },
+    toggleContentDisplay : function (element, effect) {
+        let $element = $(element);
+        if (config.blacklist_view === true) {
+            if (effect === 'fade') {
+                $element.fadeIn();
+            } else $element.show();
+        } else {
+            if (effect === 'fade') {
+                $element.fadeOut();
+            } else $element.hide();
+        }
+        return true;
+    }
+};
+
+/** contentMemo  **/
+export let contentMemo = {
+    convert : function (input) {
+        let i = {ip:[], tag:[]};
+        input.split('\n').forEach(function (elem) {
+            let [ip, tag] = elem.split('-');
+            if(ip == null || tag == null) return false;
+            i.ip.push(ip);
+            i.tag.push(tag);
+        });
+        return i;
+    },
+    toContent : function () {
+        if(config.userMemo === false) return;
+        $('tbody').children('.ub-content').filter( function () {
+            var writer = $(this).children('.ub-writer');
+            var ip = writer.attr('data-ip');
+            var match = filter.usermemo.ip.indexOf(ip);
+            if(match === -1) return;
+            $(writer).attr('title', ip);
+            $(writer).children('.ip').html('('+filter.usermemo.tag[match]+')');
+        })
+    },
+    toComment : function () {
+        if(config.userMemo === false) return;
+        var root = pageContext.calltype == "lists" ? $("#dcs_iframe").contents() : $('body');
+        root.find('.view_comment li[class^=ub-content]').filter( function () {
+            var writer = $(this).find('.ub-writer');
+            var ip = writer.attr('data-ip');
+            var match = filter.usermemo.ip.indexOf(ip);
+
+            if( writer.length > 0 ){
+                if (match !== -1){
+                    $(writer).attr('title', ip);
+                    $(writer).find('.ip').html('('+filter.usermemo.tag[match]+')');
+                }
+            }
+        })
+    }
+};
