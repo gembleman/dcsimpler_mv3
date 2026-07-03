@@ -10,7 +10,7 @@ import { pruneHistory, increaseStat } from '@/lib/stats';
 const STAT_FLAGS = ['view', 'write', 'reply'];
 
 const GALL_BOARD_URL_REGEX =
-  'https://gall.dcinside.com(/mgallery)?(/)?/board/(lists|view|write|modify)';
+  '^https://gall\\.dcinside\\.com/(?:board|(?:mgallery|mini|person)/+board)/(?:lists|view|write|modify)';
 
 // 프리프로세싱 CSS (구 preprocessing.*)
 const PREPROCESS_CSS = {
@@ -184,7 +184,7 @@ export default defineBackground(() => {
       const tab = tabs[0];
       if (!tab?.id || !tab.url) return;
       const cond = tab.url.match(
-        /https:\/\/gall.dcinside.com(\/mgallery)?\/board\/(lists|view|write)/g,
+        /https:\/\/gall\.dcinside\.com\/(?:board|(?:mgallery|mini|person)\/+board)\/(?:lists|view|write)/g,
       );
       if (cond) chrome.tabs.sendMessage(tab.id, { flag: 'command:write' });
     });
@@ -221,6 +221,13 @@ export default defineBackground(() => {
         console.log('Auto image insertion failed.', e);
       });
     },
-    { url: [{ urlMatches: 'gall.dcinside.com(/mgallery)?/board/write/' }] },
+    {
+      url: [
+        {
+          urlMatches:
+            'gall\\.dcinside\\.com/(?:board|(?:mgallery|mini|person)/+board)/write/',
+        },
+      ],
+    },
   );
 });

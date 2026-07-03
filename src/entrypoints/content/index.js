@@ -7,6 +7,8 @@ export default defineContentScript({
     'https://gall.dcinside.com/board/*',
     'https://gall.dcinside.com/mgallery/board/*',
     'https://gall.dcinside.com/mgallery//board/*',
+    'https://gall.dcinside.com/mini/board/*',
+    'https://gall.dcinside.com/person/board/*',
   ],
   runAt: 'document_start',
   main() {
