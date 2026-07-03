@@ -1,3 +1,4 @@
+import { delegate, qsa } from './dom';
 import { contentBlock, contentMemo } from './filters';
 import { app } from './messaging';
 import { config, keyEnum, normalizeKey } from './state';
@@ -6,51 +7,54 @@ export let postprocessing = {};
 
 postprocessing.blurImage = function () {
     if(config.blurImage === false) return;
-    var target = $('.gallview_contents').children('.inner');
-    var select = $(target).find('img, video');
-    target.find('img').removeAttr('onclick');
-    select.attr('blur', 'y');
-    select.on('click', function (event) {
-        $(this).attr('blur', 'n');
-        event.preventDefault();
-        event.stopPropagation();
+    var target = document.querySelector('.gallview_contents > .inner');
+    if (!target) return;
+    var select = qsa('img, video', target);
+    qsa('img', target).forEach((image) => image.removeAttribute('onclick'));
+    select.forEach((element) => {
+        element.setAttribute('blur', 'y');
+        element.addEventListener('click', function (event) {
+            this.setAttribute('blur', 'n');
+            event.preventDefault();
+            event.stopPropagation();
+        });
     });
-
 };
 postprocessing.forceReloadImage = function () {
     if(config.autoRefreshImage === false) return;
-    var target = $('.writing_view_box').find('img[src^=http][onclick^="javascript"]');
-    $.each(target, function (index, item) {
-        var replace = $('.appending_file').children().eq(index).children().attr('href');
-        $(item).attr('src', replace);
-    })
+    qsa('.writing_view_box img[src^=http][onclick^="javascript"]').forEach(function (item, index) {
+        var replace = document.querySelectorAll('.appending_file > *')[index]?.querySelector('[href]')?.getAttribute('href');
+        if (replace) item.setAttribute('src', replace);
+    });
 };
 postprocessing.avoidServiceCode = function () {
-    //for write page
-    $('.write_infobox').focus().trigger('click');
-    $('#subject').focus().trigger('click')
-    $('.write_infobox').focus().trigger('click');
-    $('#subject').focus().trigger('click').keydown(function (event) {
+    document.querySelector('.write_infobox')?.focus();
+    document.querySelector('.write_infobox')?.click();
+    document.querySelector('#subject')?.focus();
+    document.querySelector('#subject')?.click();
+    document.querySelector('.write_infobox')?.focus();
+    document.querySelector('.write_infobox')?.click();
+    const subject = document.querySelector('#subject');
+    subject?.focus();
+    subject?.click();
+    subject?.addEventListener('keydown', function (event) {
         if(normalizeKey(event) === keyEnum.TAB) {
             event.preventDefault();
-            $('#tx_canvas_wysiwyg').focus();
+            document.querySelector('#tx_canvas_wysiwyg')?.focus();
         }
     });
 
-    // avoiding service_code:undefine
     document.querySelectorAll('div').forEach(function (element) {
         element.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
     });
 
-    $(document).on('click', '.btn_blue.btn_svc.write', function (event) {
+    delegate(document, 'click', '.btn_blue.btn_svc.write', function () {
         app.sendToBackground('write');
     });
 };
 
 postprocessing.setBackgroundColorForDarkMode = function () {
-    if($('#css-darkmode').index() < 0) {
-        return 'white'
-    }
+    if(!document.querySelector('#css-darkmode')) return 'white';
     else return '#121212';
 };
 postprocessing.run = {};

@@ -1,30 +1,34 @@
 import { fetching } from './common';
 import { pageContext } from './context';
+import { parseHtml, qsa } from './dom';
 import { contentBlock, contentMemo } from './filters';
 import { manipulateDOM } from './page-ui';
 import { config } from './state';
 
-let listLoaderDependencies = {
-    loadArticleViaDialog: null
-};
+let listLoaderDependencies = { loadArticleViaDialog: null };
 
 export function setListLoaderDependencies(dependencies) {
     listLoaderDependencies = { ...listLoaderDependencies, ...dependencies };
 }
 
+function escapeRegExp(value) {
+    return value.replace(/[\^$.*+?()[]{}|]/g, '\$&');
+}
+
 function keywordHighlighting() {
-    let keyword = $('input:hidden[name=s_keyword]').val();
-    if (keyword && keyword != "" && keyword != "null") {
-        let escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        let keywordRegex = new RegExp(escapedKeyword);
-        $('.gall_tit').each(function(){
-            let tmp_subject = $('a:first-child', this).clone();
-            $('.icon_img', tmp_subject).remove();
-            tmp_subject = $(tmp_subject).html();
-            if (tmp_subject.match(keywordRegex)) {
-                var subject = tmp_subject.replace(keyword, '<span class="mark">'+ keyword +'</span>');
-                subject = $('a:first-child', this).html().replace(tmp_subject, subject);
-                $('a:first-child', this).html(subject);
+    let keywordElement = document.querySelector('input[type="hidden"][name="s_keyword"], input[name="s_keyword"]');
+    let keyword = keywordElement ? keywordElement.value : undefined;
+    if (keyword && keyword != '' && keyword != 'null') {
+        let keywordRegex = new RegExp(escapeRegExp(keyword));
+        qsa('.gall_tit').forEach(function(gallTitle){
+            let anchor = gallTitle.querySelector('a:first-child');
+            if (!anchor) return;
+            let tmpSubject = anchor.cloneNode(true);
+            qsa('.icon_img', tmpSubject).forEach((icon) => icon.remove());
+            tmpSubject = tmpSubject.innerHTML;
+            if (tmpSubject.match(keywordRegex)) {
+                var subject = tmpSubject.replace(keyword, '<span class="mark">'+ keyword +'</span>');
+                anchor.innerHTML = anchor.innerHTML.replace(tmpSubject, subject);
             }
         });
     }
@@ -52,28 +56,44 @@ export let loadList = async function (requestURL) {
 
         manipulateDOM.setProgress(1);
         history.replaceState({data: 'getLists'}, 'title', requestURL);
-        let listHTML = await res.text();
+        let listDocument = parseHtml(await res.text());
 
-        var newList = $(listHTML).find('.gall_list').addClass('onload').clone();
-        var newPagenation = $(listHTML).find('.bottom_paging_box').eq(1).html();
+        var newList = listDocument.querySelector('.gall_list');
+        if (newList) {
+            newList = newList.cloneNode(true);
+            newList.classList.add('onload');
+        }
+        var newPagenation = listDocument.querySelectorAll('.bottom_paging_box')[1]?.innerHTML ?? '';
 
-        $('.left_content')
-            .find('head').remove().end()
-            .find('.wrapGL').html(newList[0]).end()
-            .find('.bottom_paging_box').eq(0).html(newPagenation)
-            .children('a').attr('onclick', 'return false;').attr('class', 'dcs_pagenationChild');
+        const leftContent = document.querySelector('.left_content');
+        const wrap = leftContent?.querySelector('.wrapGL');
+        if (leftContent && wrap && newList) {
+            leftContent.querySelectorAll('head').forEach((head) => head.remove());
+            wrap.replaceChildren(newList);
+            const paging = leftContent.querySelectorAll('.bottom_paging_box')[0];
+            if (paging) {
+                paging.innerHTML = newPagenation;
+                qsa('a', paging).forEach((anchor) => {
+                    anchor.setAttribute('onclick', 'return false;');
+                    anchor.setAttribute('class', 'dcs_pagenationChild');
+                });
+            }
+        }
 
         contentBlock.toContent();
         contentMemo.toContent();
 
-        $(".left_content .ub-content .gall_tit a").attr('onclick', 'return false;').click(function (evt) {
-            $(this).blur();
-            if (evt.target.classList[0] === 'icon_img' || !pageContext.lists) {
-                window.location.href = $(this).attr('href');
-            }
-            else config.directView === true ? listLoaderDependencies.loadArticleViaDialog($(this).attr('href')) : window.location.href = $(this).attr('href');
+        qsa('.left_content .ub-content .gall_tit a').forEach(function (anchor) {
+            anchor.setAttribute('onclick', 'return false;');
+            anchor.addEventListener('click', function (evt) {
+                this.blur();
+                const clickedIcon = evt.target instanceof Element && evt.target.classList[0] === 'icon_img';
+                const href = this.getAttribute('href');
+                if (clickedIcon || !pageContext.lists) window.location.href = href;
+                else config.directView === true ? listLoaderDependencies.loadArticleViaDialog(href) : window.location.href = href;
+            });
         });
-        if(pageContext.query["s_keyword"]) keywordHighlighting();
+        if(pageContext.query['s_keyword']) keywordHighlighting();
     } catch (error) {
         console.warn(error);
         manipulateDOM.setProgress(-2);

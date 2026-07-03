@@ -1,5 +1,6 @@
 import { exitMain } from './common';
 import { createPageContext, setPageContext } from './context';
+import { trigger } from './dom';
 import { loadArticleViaDialog } from './direct-view';
 import { contentBlock, contentMemo } from './filters';
 import { loadList, setListLoaderDependencies } from './list-loader';
@@ -17,9 +18,7 @@ function main() {
     setPageContext(context);
     const calltype = context.calltype;
 
-    if(!callTypeList.includes(calltype)) {
-        return exitMain();
-    }
+    if(!callTypeList.includes(calltype)) return exitMain();
 
     const configReady = app.requestConfig().then(function (data) {
         setConfig(data);
@@ -30,10 +29,8 @@ function main() {
     });
 
     const onReady = async function() {
-        if(!document.body)
-            return exitMain();  //avoiding redirect error
-        if(document.body.innerHTML.length === 0 || document.querySelector('.noaccess_wrap') !== null)
-            return exitMain();
+        if(!document.body) return exitMain();
+        if(document.body.innerHTML.length === 0 || document.querySelector('.noaccess_wrap') !== null) return exitMain();
         if(document.body.innerHTML === '정상적인 접근이 아닙니다') {
             window.location.reload();
             return exitMain();
@@ -47,10 +44,7 @@ function main() {
         if (typeof manipulateDOM.run[calltype] === 'function') manipulateDOM.run[calltype]();
         if (typeof postprocessing.run[calltype] === 'function') postprocessing.run[calltype]();
 
-        if(calltype === 'lists' || calltype ==='view') {
-            loadList();
-        }
-
+        if(calltype === 'lists' || calltype ==='view') loadList();
         return true;
     };
 
@@ -69,16 +63,14 @@ function main() {
     }
 }
 
-// Alt+S(글 등록) — MV3에서는 background가 코드 문자열을 주입할 수 없어
-// 커맨드를 메시지로 받아 content script에서 처리한다
 function bindCommandListener() {
     chrome.runtime.onMessage.addListener(function (request) {
         if (!request || request.flag !== 'command:write') return;
-        $('#container').trigger('mousedown');
-        $('#container').trigger('click');
-        $('#subject').trigger('mousedown');
-        $('form').first().trigger('click');
-        $('.btn_blue.btn_svc.write, .btn_blue.write').trigger('click');
+        trigger(document.querySelector('#container'), 'mousedown');
+        trigger(document.querySelector('#container'), 'click');
+        trigger(document.querySelector('#subject'), 'mousedown');
+        trigger(document.querySelector('form'), 'click');
+        document.querySelector('.btn_blue.btn_svc.write, .btn_blue.write')?.click();
     });
 }
 

@@ -3,7 +3,7 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   srcDir: 'src',
   hooks: {
-    // content.css / jquery-ui.css는 chrome-extension://__MSG_@@extension_id__ URL을
+    // content.css는 chrome-extension://__MSG_@@extension_id__ URL을
     // 사용하므로 Vite 번들을 우회해 public 사본을 manifest css로 직접 주입한다.
     'build:manifestGenerated'(_wxt, manifest) {
       const contentScript = manifest.content_scripts?.find((cs) =>
@@ -11,7 +11,6 @@ export default defineConfig({
       );
       if (contentScript) {
         contentScript.css = [
-          'css/jquery-ui.css',
           'css/content.css',
           ...(contentScript.css ?? []),
         ];

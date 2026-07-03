@@ -1,51 +1,49 @@
 import { pageContext } from './context';
+import { isDialogTarget, isEditableTarget } from './dom';
 import { keyEnum, normalizeKey } from './state';
 
-export function bindHotkeys() {      // 핫키바인딩을 아이프레임과 통합할 것
-        $("html").keydown(function(event) { //단축키 : c댓글이동, w글작성 q차단토글 r새로고침 t상단으로
-            var key = normalizeKey(event);
+function blocksGlobalHotkey(target) {
+    return isEditableTarget(target) || isDialogTarget(target);
+}
 
-            //c : go reply panel
-            if(key === keyEnum.C && !event.ctrlKey && !$(event.target).is("input, textarea")) {
-                if (pageContext.lists && document.querySelector('#dcs_dialog')) {
-                    $(document.getElementById('dcs_iframe').contentWindow.document).find("textarea").focus();
-                }
-                else if (pageContext.view) {
-                    $('#avoiding_c').focus(); // avoding keyInput when hotkey 'C'
-                    setTimeout(function () {$('body').find("textarea").focus();},10);
-                }
+export function bindHotkeys() {
+    document.documentElement.addEventListener('keydown', function(event) {
+        var key = normalizeKey(event);
+
+        if(key === keyEnum.C && !event.ctrlKey && !isEditableTarget(event.target)) {
+            if (pageContext.lists && document.querySelector('#dcs_dialog')) {
+                document.querySelector('#dcs_iframe')?.contentWindow?.document.querySelector('textarea')?.focus();
             }
-            //w : go write page
-            else if(key === keyEnum.W && !event.ctrlKey) {
-                if(!$(event.target).is("input, textarea, .ui-dialog")) $('#btn_write').trigger("click");
+            else if (pageContext.view) {
+                document.querySelector('#avoiding_c')?.focus();
+                setTimeout(function () { document.querySelector('body textarea')?.focus(); },10);
             }
-            //q : toggle blacklistView
-            else if(key === keyEnum.Q && !event.ctrlKey) {
-                if(!$(event.target).is("input, textarea")) $('#viewToggle').trigger("click");
+        }
+        else if(key === keyEnum.W && !event.ctrlKey) {
+            if(!blocksGlobalHotkey(event.target)) document.querySelector('#btn_write')?.click();
+        }
+        else if(key === keyEnum.Q && !event.ctrlKey) {
+            if(!isEditableTarget(event.target)) document.querySelector('#viewToggle')?.click();
+        }
+        else if(key === keyEnum.R && !event.ctrlKey) {
+            if(!blocksGlobalHotkey(event.target)) document.querySelector('.btn_normal')?.click();
+        }
+        else if(key === keyEnum.T && !event.ctrlKey) {
+            if(!blocksGlobalHotkey(event.target)) window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        else if(key === keyEnum.A && !event.ctrlKey) {
+            if(!blocksGlobalHotkey(event.target)) {
+                var current = document.querySelector('.bottom_paging_box em');
+                var prev = current?.previousElementSibling || document.querySelector('.bottom_paging_box a');
+                prev?.click();
             }
-            //r : refresh gallery
-            else if(key === keyEnum.R && !event.ctrlKey) {
-                if(!$(event.target).is("input, textarea, .ui-dialog")) $('.btn_normal').first().trigger("click");
+        }
+        else if(key === keyEnum.S && !event.ctrlKey) {
+            if(!blocksGlobalHotkey(event.target)) {
+                var current = document.querySelector('.bottom_paging_box em');
+                var next = current?.nextElementSibling || Array.from(document.querySelectorAll('.bottom_paging_box a')).at(-1);
+                next?.click();
             }
-            //t : go page top
-            else if(key === keyEnum.T && !event.ctrlKey) {
-                if(!$(event.target).is("input, textarea, .ui-dialog")) $('html, body').animate({scrollTop : 0}, 400);
-            }
-            // a : back page list
-            else if(key === keyEnum.A && !event.ctrlKey) {
-                if(!$(event.target).is("input, textarea, .ui-dialog")) {
-                    var prev = $('body').find('.bottom_paging_box').children('em').prev();
-                    if(prev.end().length === 0) prev = $('body').find('.bottom_paging_box').children('a').first();
-                    prev.click();
-                }
-            }
-            // s: forward page list
-            else if(key === keyEnum.S && !event.ctrlKey) {
-                if(!$(event.target).is("input, textarea, .ui-dialog")) {
-                    var next = $('body').find('.bottom_paging_box').children('em').next();
-                    if(next.end().length === 0) next = $('body').find('.bottom_paging_box').children('a').last();
-                    next.click();
-                }
-            }
-        });
+        }
+    });
 }

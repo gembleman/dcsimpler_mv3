@@ -1,5 +1,5 @@
 html {
-    overflow-y: overlay;    /* webkit only */
+    overflow-y: auto;    /* webkit only */
 }
 .array_tab button[class^=btn] {
     margin-right: 4px;
@@ -13,27 +13,60 @@ html {
 .alarmPopup {
     right: 142px !important;
 }
-/* dialog inner */
-.ui-dialog {
+/* dialog */
+#dcs_dialog {
+    position: fixed;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    width: 880px;
+    max-width: calc(100vw - 24px);
+    height: 84vh;
+    max-height: 84vh;
+    overflow: hidden;
     box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
     transition: 0.1s ease-in;
 }
-.ui-dialog:hover {
+#dcs_dialog::backdrop {
+    background: rgba(0,0,0,0.35);
+}
+#dcs_dialog:hover {
     box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
 }
-.ui-dialog-titlebar {
-    position: fixed !important;
-    visibility: hidden;
-}
-.ui-dialog-content {
+#dcs_dialog_body {
+    height: 100%;
     transition: 0.3s ease-in;
     padding-top: 0 !important;
-    max-height: 800px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
-.ui-dialog .btn_recommend_box {
-    display: none;
+.dcs-dialog-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 2;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    background: rgba(0,0,0,0.12);
 }
-.ui-dialog .recommend_kapcode {
+.dcs-dialog-close::before,
+.dcs-dialog-close::after {
+    content: '';
+    position: absolute;
+    top: 13px;
+    left: 7px;
+    width: 14px;
+    height: 2px;
+    background: #333;
+}
+.dcs-dialog-close::before { transform: rotate(45deg); }
+.dcs-dialog-close::after { transform: rotate(-45deg); }
+#dcs_dialog .btn_recommend_box,
+#dcs_dialog .recommend_kapcode {
     display: none;
 }
 
@@ -44,18 +77,16 @@ html {
 .list .gall_tit a:visited {
     /*color: #a8a8a8 !important;*/
 }
-.ui-dialog .clear.cmt_txtbox {
+#dcs_dialog .clear.cmt_txtbox {
     width: 500px;
 }
-.ui-dialog .clear.cmt_txtbox.btn_reply_write_all {
+#dcs_dialog .clear.cmt_txtbox.btn_reply_write_all {
     width: 530px;
 }
-.ui-dialog .usertxt.ub-word {
+#dcs_dialog .usertxt.ub-word {
     width:inherit !important;
 }
 
-.ui-widget-overlay {
-}
 
 .directMemobox {
     width: 650px !important;
@@ -160,26 +191,26 @@ html {
 
 
 /* dialog inner*/
-#dcs_dialog {
+#dcs_dialog_body {
     overflow-x: hidden;
-    overflow-y: scroll;
+    overflow-y: auto;
     overscroll-behavior: contain;
 }
-#dcs_dialog::-webkit-scrollbar-track
+#dcs_dialog_body::-webkit-scrollbar-track
 {
     border-radius: 10px;
     /*background-color: #F5F5F5;*/
     background-color: rgba(255, 255, 255, 0.11);
     opacity: 0;
 }
-#dcs_dialog::-webkit-scrollbar
+#dcs_dialog_body::-webkit-scrollbar
 {
     width: 8px;
     /*background-color: #fff;*/
     background-color: rgba(255, 255, 255, 0.26);
     opacity: 0;
 }
-#dcs_dialog::-webkit-scrollbar-thumb
+#dcs_dialog_body::-webkit-scrollbar-thumb
 {
     border-radius: 10px;
     background-color: #c0c0c0;
@@ -574,10 +605,6 @@ green {color:#00a500}
     z-index: 9999;
 }
 
-/* dzd */
-.ui-widget-content {
-    background: inherit;
-}
 
 .dialog-fixer {
     margin-left: -20px;
