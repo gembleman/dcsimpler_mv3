@@ -75,7 +75,7 @@ export let manipulateDOM = {
             '</div>';
 
         document.querySelector('.right_box')?.insertAdjacentHTML('afterbegin', frag);
-        qsa('.right_content').forEach((element) => element.style.display = rightPanelVisibility === 'show' ? '' : 'none');
+        qsa('.right_content').forEach((element) => element.style.display = rightPanelVisibility === 'show' ? 'block' : 'none');
 
         delegate(document, 'click', '#io-opt', function (evt) {
             const slideMenu = document.querySelector('#opt-slideMenu');
@@ -86,7 +86,7 @@ export let manipulateDOM = {
             }
         });
         delegate(document, 'click', '#io-rptg', function () {
-            if( localStorage.io2 ) qsa('.right_content').forEach((element) => element.style.display = element.style.display === 'none' ? '' : 'none');
+            if( localStorage.io2 ) qsa('.right_content').forEach((element) => element.style.display = element.style.display === 'none' ? 'block' : 'none');
             if( localStorage.io2 === 'show' ) {
                 localStorage.io2 = 'hide';
                 document.querySelector('#io-rptg')?.setAttribute('t', 'show');
@@ -125,22 +125,46 @@ export let manipulateDOM = {
             return '//'+link.replace(/^\/+/, '');
         };
 
-        let readLatelyGallery = function () {
+        let normalizeGalleryItems = function (items) {
+            let seen = new Set();
+            if (!Array.isArray(items)) return [];
+            return items.map(function (elem) {
+                let link = normalizeLink(elem?.link);
+                let name = (elem?.name ?? '').trim();
+                let id = elem?.id ?? '';
+                let type = elem?.type ?? '';
+                if (!link || !name || seen.has(link)) return null;
+                seen.add(link);
+                return { name, link, id, type };
+            }).filter(Boolean);
+        };
+
+        let readStoredLatelyGallery = function () {
             let stored;
             try {
                 stored = JSON.parse(localStorage.lately_gallery);
             } catch (e) {
                 stored = [];
             }
-            if (!Array.isArray(stored)) stored = [];
-            let seen = new Set();
-            return stored.map(function (elem) {
-                let link = normalizeLink(elem?.link);
-                let name = (elem?.name ?? '').trim();
-                if (!link || !name || seen.has(link)) return null;
-                seen.add(link);
-                return { name, link, id: elem?.id, type: elem?.type };
-            }).filter(Boolean);
+            return normalizeGalleryItems(stored);
+        };
+
+        let readDomLatelyGallery = function () {
+            let items = qsa('#visit_history_lyr .under_listbox.vst_list li, #visit_history .newvisit_list.vst_listbox li');
+            return normalizeGalleryItems(items.map(function (item) {
+                let anchor = item.querySelector('a[href]');
+                let button = item.querySelector('.btn_visit_del');
+                return {
+                    link: anchor?.getAttribute('href') ?? '',
+                    name: anchor?.textContent ?? '',
+                    id: button?.getAttribute('data-id') ?? anchor?.getAttribute('section') ?? '',
+                    type: button?.getAttribute('data-gtype') ?? '',
+                };
+            }));
+        };
+
+        let readLatelyGallery = function () {
+            return normalizeGalleryItems(readStoredLatelyGallery().concat(readDomLatelyGallery()));
         };
 
         let findDeleteButton = function (elem) {
@@ -176,18 +200,37 @@ export let manipulateDOM = {
             container.replaceChildren(createGalleryElements(latelyGalleries));
         };
 
-        if(config.addRightSideVisitHistory === false) return false;
-        let latelyGallery = readLatelyGallery();
-        const loginBox = document.querySelector('#login_box');
-        if (loginBox) {
+        let findMountTarget = function () {
+            return document.querySelector('#login_box') ?? document.querySelector('.right_content > div') ?? document.querySelector('.right_content');
+        };
+
+        let mountVisitHistory = function () {
+            latelyGallery = readLatelyGallery();
+            const mountTarget = findMountTarget();
+            if (!mountTarget) return false;
             document.querySelector('#dcs_visit_history')?.remove();
             let visitHistoryNode = document.createElement('div');
             visitHistoryNode.id = 'dcs_visit_history';
             renderGalleryElements(visitHistoryNode, latelyGallery);
-            insertAfter(visitHistoryNode, loginBox);
-        }
+            insertAfter(visitHistoryNode, mountTarget);
+            visitHistoryNode.addEventListener('click', visitHistoryClickListener);
+            return latelyGallery.length > 0;
+        };
 
-        document.querySelector('#dcs_visit_history')?.addEventListener('click', function (event) {
+        let observeVisitHistoryMount = function () {
+            if (!document.body) return;
+            let observer = new MutationObserver(function () {
+                if (!findMountTarget() || readLatelyGallery().length === 0) return;
+                observer.disconnect();
+                mountVisitHistory();
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            setTimeout(function () {
+                observer.disconnect();
+            }, 5000);
+        };
+
+        let visitHistoryClickListener = function (event) {
             if (event.target.id !== 'dcs_closebox') return false;
             let index = event.target.parentElement.attributes.index.value;
             let removed = latelyGallery[index];
@@ -198,8 +241,13 @@ export let manipulateDOM = {
                 }));
             } catch (e) { /* localStorage 사용 불가 시 무시 */ }
             findDeleteButton(removed)?.click();
-            renderGalleryElements(document.querySelector('#dcs_visit_history'), latelyGallery);
-        });
+            const visitHistoryNode = document.querySelector('#dcs_visit_history');
+            if (visitHistoryNode) renderGalleryElements(visitHistoryNode, latelyGallery);
+        };
+
+        if(config.addRightSideVisitHistory === false) return false;
+        let latelyGallery = [];
+        if (!mountVisitHistory()) observeVisitHistoryMount();
     },
     outerButton: () => {
         document.querySelector('.dcwrap')?.insertAdjacentHTML('beforeend', '<a id="backTop" class="external-button blue">TOP</a><a id="viewToggle" class="external-button '+(config.blacklist_view ? 'on' : '')+'"></a>');
