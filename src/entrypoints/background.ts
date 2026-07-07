@@ -6,8 +6,13 @@
 // - 설치 시 alert → 옵션 페이지 열기로 대체, requestUpdateCheck 제거(웹스토어가 처리)
 import { getConfig, ensureConfig } from '@/lib/storage';
 import { pruneHistory, increaseStat } from '@/lib/stats';
-
-const STAT_FLAGS = ['view', 'write', 'reply'];
+import {
+  isConfigRequestMessage,
+  isOpenConfigMessage,
+  isStatRequestMessage,
+  type ContentRequestMessage,
+  type StatResponseMessage,
+} from '@/lib/messages';
 
 const GALL_BOARD_URL_REGEX =
   '^https://gall\\.dcinside\\.com/(?:board|(?:mgallery|mini|person)/+board)/(?:lists|view|write|modify)';
@@ -170,23 +175,25 @@ export default defineBackground(() => {
     chrome.runtime.openOptionsPage();
   });
 
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (!request || typeof request.flag !== 'string') return false;
-
-    if (request.flag === 'request') {
+  chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (isConfigRequestMessage(request)) {
       getConfig().then(sendResponse);
       return true; // async 응답
     }
-    if (request.flag === 'openConfig') {
+    if (isOpenConfigMessage(request)) {
       chrome.runtime.openOptionsPage();
       return false;
     }
-    if (STAT_FLAGS.includes(request.flag)) {
+    if (isStatRequestMessage(request)) {
       increaseStat(request)
-        .then(() => sendResponse({ baz: 'success' }))
+        .then(() => {
+          const response: StatResponseMessage = { baz: 'success' };
+          sendResponse(response);
+        })
         .catch((e) => {
           console.log('Stat update failed.', e);
-          sendResponse({ baz: 'fail' });
+          const response: StatResponseMessage = { baz: 'fail' };
+          sendResponse(response);
         });
       return true;
     }
@@ -202,7 +209,10 @@ export default defineBackground(() => {
       const cond = tab.url.match(
         /https:\/\/gall\.dcinside\.com\/(?:board|(?:mgallery|mini|person)\/+board)\/(?:lists|view|write)/g,
       );
-      if (cond) chrome.tabs.sendMessage(tab.id, { flag: 'command:write' });
+      if (cond) {
+        const message: ContentRequestMessage = { flag: 'command:write' };
+        chrome.tabs.sendMessage(tab.id, message);
+      }
     });
   });
 

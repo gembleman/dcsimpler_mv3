@@ -4,6 +4,7 @@ import { delegate, qsa } from './dom';
 import { contentBlock, contentMemo } from './filters';
 import { config } from './state';
 import { bindHotkeys } from './hotkeys';
+import type { OpenConfigMessage } from '../../lib/messages';
 
 interface PageUiDependencies {
     loadList: (requestURL?: string) => void | Promise<void>;
@@ -50,7 +51,8 @@ export const manipulateDOM = {
 
         delegate(document, 'click', '.btn_normal, .btn_recommend, .btn_notice', arraytabListener);
         delegate(document, 'click', '.btn_config', function () {
-            chrome.runtime.sendMessage({flag: 'openConfig'});
+            const message: OpenConfigMessage = { flag: 'openConfig' };
+            chrome.runtime.sendMessage(message);
         });
 
         function arraytabListener (event) {
@@ -100,7 +102,11 @@ export const manipulateDOM = {
             const target = evt.target instanceof Element ? evt.target : null;
             switch (target?.id) {
                 case 'login' : { const href = document.querySelector('.btn_top_loginout')?.getAttribute('href'); if (href) window.location.href = href; break; }
-                case 'config' : { chrome.runtime.sendMessage({flag: 'openConfig'}); break; }
+                case 'config' : {
+                    const message: OpenConfigMessage = { flag: 'openConfig' };
+                    chrome.runtime.sendMessage(message);
+                    break;
+                }
             }
         });
         delegate(document, 'click', '#io-rptg', function () {

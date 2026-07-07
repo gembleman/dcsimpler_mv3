@@ -8,6 +8,7 @@ import { app } from './messaging';
 import { manipulateDOM, setPageUiDependencies } from './page-ui';
 import { postprocessing } from './postprocess';
 import { config, filter, setConfig } from './state';
+import { isCommandWriteMessage } from '../../lib/messages';
 
 setPageUiDependencies({ loadList });
 setListLoaderDependencies({ loadArticleViaDialog });
@@ -64,8 +65,8 @@ function main() {
 }
 
 function bindCommandListener() {
-    chrome.runtime.onMessage.addListener(function (request) {
-        if (!request || request.flag !== 'command:write') return;
+    chrome.runtime.onMessage.addListener(function (request: unknown) {
+        if (!isCommandWriteMessage(request)) return;
         trigger(document.querySelector('#container'), 'mousedown');
         trigger(document.querySelector('#container'), 'click');
         trigger(document.querySelector('#subject'), 'mousedown');
