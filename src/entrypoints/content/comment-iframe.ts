@@ -4,6 +4,19 @@ import { closeDialog } from './dialog';
 import { app } from './messaging';
 import { keyEnum, normalizeKey } from './state';
 
+// Intentionally uses an iframe as a legacy adapter: the direct-view dialog fetches
+// article content itself, but keeps DCInside's original comment runtime for
+// posting, replies, dccon handling, refresh behavior, and site-side edge cases.
+// Replacing this with fetch/API calls means owning those private request flows.
+const COMMENT_IFRAME_ID = 'dcs_iframe';
+const SMALL_LOADING_ID = 'small_loading';
+const IFRAME_HEIGHT_PADDING = 20;
+const INITIAL_IFRAME_STYLE = 'display:block; overflow: hidden; width :1px; height: 1px';
+const FALLBACK_IFRAME_WIDTH = '555px';
+const MAX_LOAD_ATTEMPTS = 10;
+const RETRY_DELAY_MS = 1000;
+const COMMENT_COUNT_ZERO = '0';
+const TEXTAREA_FOCUS_DELAY_MS = 10;
 const COMMENT_IFRAME_STYLE = '<style>html { overflow: hidden; } #container { margin-left : 1px !important; } .view_content_wrap { display : none !important; } .view_comment { width: 840px !important; } [id^=memo] { width : 630px !important; } .cmt_write_box.small [id^=memo] { width : 600px !important; } .view_bottom_btnbox { display : none !important; } .cmt_txtbox { width : 500px !important; } .usertxt.ub-word { width:inherit !important; } .ub-content[blackedUser~=qvz] { color:gray; background: #e4e4e4; } .ub-content[blackedUser~=qvz] td { color:gray; } .ub-content[blackedUser~=qvz] a { color:gray !important; } .pop_wrap.type3 { left : 19px !important; } div[id^=div-gpt] { display: none; } .wrap_inner { margin : 0 !important; } ::selection { background: #d7e8ff; color: #25282b; text-shadow: none; } red {color:#ff5442} blue {color:#4666ff} green {color:#00a500}</style>';
 
 function getErrorMessage(error: unknown): string {
@@ -12,10 +25,10 @@ function getErrorMessage(error: unknown): string {
 
 function createCommentIframe(dialogTemplate: HTMLElement) {
     const smallLoading = document.createElement('div');
-    smallLoading.id = 'small_loading';
+    smallLoading.id = SMALL_LOADING_ID;
     const iframe = document.createElement('iframe');
-    iframe.id = 'dcs_iframe';
-    iframe.setAttribute('style', 'display:block; overflow: hidden; width :1px; height: 1px');
+    iframe.id = COMMENT_IFRAME_ID;
+    iframe.setAttribute('style', INITIAL_IFRAME_STYLE);
     dialogTemplate.append(smallLoading, iframe);
     return { smallLoading, iframe };
 }
@@ -42,10 +55,16 @@ function prepareIframeDocument(iframe: HTMLIFrameElement, dialogElement: HTMLDia
     if (lastStylesheet) lastStylesheet.after(styleFragment);
     else iframeDocument.head?.append(styleFragment);
 
-    iframe.style.height = iframeDocument.body.scrollHeight + 20 + 'px';
+    resizeIframeToContent(iframe, iframeDocument);
     iframe.style.width = iframeDocument.body.scrollWidth + 'px';
     dialogElement.focus();
     return iframeDocument;
+}
+
+function resizeIframeToContent(iframe: HTMLIFrameElement, iframeDocument: Document): number {
+    const contentHeight = iframeDocument.body.scrollHeight;
+    iframe.style.height = contentHeight + IFRAME_HEIGHT_PADDING + 'px';
+    return contentHeight;
 }
 
 function bindIframeHotkeys(iframeDocument: Document): void {
@@ -58,7 +77,7 @@ function bindIframeHotkeys(iframeDocument: Document): void {
             document.querySelector<HTMLElement>('#avoiding_c')?.focus();
             setTimeout(function () {
                 iframeDocument.querySelector<HTMLTextAreaElement>('textarea')?.focus();
-            },10);
+            }, TEXTAREA_FOCUS_DELAY_MS);
         }
         else if(key === keyEnum.Q && withoutCtrlKey && !onTextarea) {
             document.querySelector<HTMLElement>('#viewToggle')?.click();
@@ -78,16 +97,16 @@ function bindIframeReplyTracking(iframeDocument: Document, dialogElement: HTMLDi
 
 function maybeRefreshEmptyIframeComments(iframeDocument: Document): void {
     var dialogCommentBadge = document.querySelector('.gall_comment');
-    var numberOfcommentsFromDialog = dialogCommentBadge ? dialogCommentBadge.innerHTML.replace(/[^0-9]/g, '') : '0';
+    var numberOfcommentsFromDialog = dialogCommentBadge ? dialogCommentBadge.innerHTML.replace(/[^0-9]/g, '') : COMMENT_COUNT_ZERO;
     var commentCountElement = iframeDocument.querySelector<HTMLElement>('span[id^=comment]');
-    var numberOfcommentsFromiFrame = commentCountElement ? commentCountElement.innerText.replace(/[^0-9]/g, '') : '0';
+    var numberOfcommentsFromiFrame = commentCountElement ? commentCountElement.innerText.replace(/[^0-9]/g, '') : COMMENT_COUNT_ZERO;
 
-    if(numberOfcommentsFromDialog !== '0' && numberOfcommentsFromiFrame === '0') {
+    if(numberOfcommentsFromDialog !== COMMENT_COUNT_ZERO && numberOfcommentsFromiFrame === COMMENT_COUNT_ZERO) {
         iframeDocument.querySelector<HTMLElement>('.btn_cmt_refresh')?.click();
     }
 }
 
-function observeIframe(iframe: HTMLIFrameElement, selector: Document) {
+function observeIframe(iframe: HTMLIFrameElement, selector: Document): MutationObserver {
     let mo = new MutationObserver(process);
     mo.observe(selector, {subtree: true, childList:true, attributeOldValue: true, attributes: true});
     var originHeight = selector.body.scrollHeight;
@@ -101,62 +120,73 @@ function observeIframe(iframe: HTMLIFrameElement, selector: Document) {
             }
         }
         try {
-            if (document.getElementById('dcs_iframe') === null) return false;
+            if (document.getElementById(COMMENT_IFRAME_ID) === null) return false;
         }
         catch (e) {
             console.error(e);
             return 0;
         }
-        const iframeBody = iframe.contentWindow?.document.body;
-        if(document.getElementById('dcs_iframe') != null && iframeBody && originHeight != iframeBody.scrollHeight) {
-            originHeight = iframeBody.scrollHeight+20;
-            iframe.style.height = iframeBody.scrollHeight+20 + 'px';
+        const iframeDocument = iframe.contentWindow?.document;
+        if(document.getElementById(COMMENT_IFRAME_ID) != null && iframeDocument && originHeight != iframeDocument.body.scrollHeight) {
+            originHeight = resizeIframeToContent(iframe, iframeDocument);
         }
     }
+    return mo;
 }
 
-export function insertCommentIframe(dialogTemplate: HTMLElement, url: string, timeout = 500) {
-    const dialog = document.querySelector<HTMLDialogElement>('#dcs_dialog');
-    if(!url || !dialog || !dialogTemplate) return false;
-    const dialogElement = dialog;
+export function insertCommentIframe(dialogTemplate: HTMLElement, url: string, retryDelay = RETRY_DELAY_MS) {
+    const dialogElement = document.querySelector<HTMLDialogElement>('#dcs_dialog');
+    if(!url || !dialogElement || !dialogTemplate) return false;
     const { smallLoading, iframe } = createCommentIframe(dialogTemplate);
+    let retryTimer: number | undefined;
+    let commentObserver: MutationObserver | undefined;
+    let loadAttempts = 0;
+    let disposed = false;
 
-    if (url === null) alert('iframe has no url!');
+    function cleanup() {
+        disposed = true;
+        iframe.removeEventListener('load', onLoad);
+        commentObserver?.disconnect();
+        if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    }
 
-    var ctr = 0;
     function loadIframe() {
+        if (disposed) return;
         iframe.addEventListener('load', onLoad);
         iframe.src = url;
     }
+
     function retryIframe() {
         iframe.removeEventListener('load', onLoad);
-        if( ctr < 10 ) {
-            iframe.src = '';
-            setTimeout(loadIframe, 1000);
-            return 0;
-        }
-        return 0;
+        if(loadAttempts >= MAX_LOAD_ATTEMPTS || disposed) return;
+        iframe.src = '';
+        retryTimer = window.setTimeout(loadIframe, retryDelay);
     }
+
     function onLoad() {
+        if (disposed) return;
         let iframeDocument: Document;
         try{
-            ctr++;
+            loadAttempts++;
             iframeDocument = prepareIframeDocument(iframe, dialogElement);
         } catch (e) {
             console.warn(new Date()+'IFRAME ERR : '+getErrorMessage(e));
-            iframe.style.width = '555px';
+            iframe.style.width = FALLBACK_IFRAME_WIDTH;
             retryIframe();
             return;
         }
 
         bindIframeHotkeys(iframeDocument);
         bindIframeReplyTracking(iframeDocument, dialogElement);
-        observeIframe(iframe, iframeDocument);
+        commentObserver?.disconnect();
+        commentObserver = observeIframe(iframe, iframeDocument);
         contentBlock.toComment(undefined, '');
         contentMemo.toComment();
         smallLoading.style.opacity = '0';
         maybeRefreshEmptyIframeComments(iframeDocument);
     }
+
+    dialogElement.addEventListener('close', cleanup, { once: true });
     loadIframe();
     return dialogTemplate;
 }
