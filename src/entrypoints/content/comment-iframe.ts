@@ -18,7 +18,27 @@ const MAX_LOAD_ATTEMPTS = 10;
 const RETRY_DELAY_MS = 1000;
 const COMMENT_COUNT_ZERO = '0';
 const TEXTAREA_FOCUS_DELAY_MS = 10;
-const COMMENT_IFRAME_STYLE = '<style>html { overflow: hidden; } #container { margin-left : 1px !important; } .view_content_wrap { display : none !important; } .view_comment { width: 840px !important; } [id^=memo] { width : 630px !important; } .cmt_write_box.small [id^=memo] { width : 600px !important; } .view_bottom_btnbox { display : none !important; } .cmt_txtbox { width : 500px !important; } .usertxt.ub-word { width:inherit !important; } .ub-content[blackedUser~=qvz] { color:gray; background: #e4e4e4; } .ub-content[blackedUser~=qvz] td { color:gray; } .ub-content[blackedUser~=qvz] a { color:gray !important; } .pop_wrap.type3 { left : 19px !important; } div[id^=div-gpt] { display: none; } .wrap_inner { margin : 0 !important; } ::selection { background: #d7e8ff; color: #25282b; text-shadow: none; } red {color:#ff5442} blue {color:#4666ff} green {color:#00a500}</style>';
+const COMMENT_IFRAME_CSS = [
+    'html { overflow: hidden; }',
+    '#container { margin-left : 1px !important; }',
+    '.view_content_wrap { display : none !important; }',
+    '.view_comment { width: 840px !important; }',
+    '[id^=memo] { width : 630px !important; }',
+    '.cmt_write_box.small [id^=memo] { width : 600px !important; }',
+    '.view_bottom_btnbox { display : none !important; }',
+    '.cmt_txtbox { width : 500px !important; }',
+    '.usertxt.ub-word { width:inherit !important; }',
+    '.ub-content[blackedUser~=qvz] { color:gray; background: #e4e4e4; }',
+    '.ub-content[blackedUser~=qvz] td { color:gray; }',
+    '.ub-content[blackedUser~=qvz] a { color:gray !important; }',
+    '.pop_wrap.type3 { left : 19px !important; }',
+    'div[id^=div-gpt] { display: none; }',
+    '.wrap_inner { margin : 0 !important; }',
+    '::selection { background: #d7e8ff; color: #25282b; text-shadow: none; }',
+    'red {color:#ff5442}',
+    'blue {color:#4666ff}',
+    'green {color:#00a500}',
+];
 
 function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -44,6 +64,14 @@ function hideSiblingsOfParents(element: Element) {
     }
 }
 
+function createCommentIframeStyle(iframeDocument: Document): DocumentFragment {
+    const style = iframeDocument.createElement('style');
+    style.textContent = COMMENT_IFRAME_CSS.join(' ');
+    const fragment = iframeDocument.createDocumentFragment();
+    fragment.append(style);
+    return fragment;
+}
+
 function prepareIframeDocument(iframe: HTMLIFrameElement, dialogElement: HTMLDialogElement): Document {
     if (!iframe.contentWindow) throw new Error('iframe window is empty');
     const iframeDocument = iframe.contentWindow.document;
@@ -51,7 +79,7 @@ function prepareIframeDocument(iframe: HTMLIFrameElement, dialogElement: HTMLDia
     const comments = iframeDocument.querySelectorAll('.view_comment');
     if(!comments.length) iframe.style.display = 'none';
     comments.forEach(hideSiblingsOfParents);
-    const styleFragment = iframeDocument.createRange().createContextualFragment(COMMENT_IFRAME_STYLE);
+    const styleFragment = createCommentIframeStyle(iframeDocument);
     const lastStylesheet = Array.from(iframeDocument.querySelectorAll<HTMLLinkElement>("head link[rel='stylesheet']")).at(-1);
     if (lastStylesheet) lastStylesheet.after(styleFragment);
     else iframeDocument.head?.append(styleFragment);
@@ -105,6 +133,22 @@ function maybeRefreshEmptyIframeComments(iframeDocument: Document): void {
     if(numberOfcommentsFromDialog !== COMMENT_COUNT_ZERO && numberOfcommentsFromiFrame === COMMENT_COUNT_ZERO) {
         iframeDocument.querySelector<HTMLElement>('.btn_cmt_refresh')?.click();
     }
+}
+
+function bindPreparedIframe(
+    iframe: HTMLIFrameElement,
+    iframeDocument: Document,
+    dialogElement: HTMLDialogElement,
+    previousObserver: MutationObserver | undefined,
+): MutationObserver {
+    bindIframeHotkeys(iframeDocument);
+    bindIframeReplyTracking(iframeDocument, dialogElement);
+    previousObserver?.disconnect();
+    const commentObserver = observeIframe(iframe, iframeDocument);
+    contentBlock.toComment(undefined, '');
+    contentMemo.toComment();
+    maybeRefreshEmptyIframeComments(iframeDocument);
+    return commentObserver;
 }
 
 function observeIframe(iframe: HTMLIFrameElement, selector: Document): MutationObserver {
@@ -170,14 +214,8 @@ export function insertCommentIframe(dialogTemplate: HTMLElement, url: string, re
             return;
         }
 
-        bindIframeHotkeys(iframeDocument);
-        bindIframeReplyTracking(iframeDocument, dialog);
-        commentObserver?.disconnect();
-        commentObserver = observeIframe(iframe, iframeDocument);
-        contentBlock.toComment(undefined, '');
-        contentMemo.toComment();
+        commentObserver = bindPreparedIframe(iframe, iframeDocument, dialog, commentObserver);
         smallLoading.style.opacity = '0';
-        maybeRefreshEmptyIframeComments(iframeDocument);
     }
 
     dialog.addEventListener('close', cleanup, { once: true });

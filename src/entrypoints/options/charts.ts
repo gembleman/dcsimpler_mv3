@@ -1,6 +1,6 @@
 import Chart from 'chart.js/auto';
 import type { ChartItem } from 'chart.js';
-import { groupByDay, groupByGall, isHistoryStore, type HistoryStore } from '@/lib/stats';
+import { groupByDay, groupByGall, normalizeHistoryStore, type HistoryStore } from '@/lib/stats';
 import { qs } from '@/lib/dom';
 import { setText } from './dom-effects';
 import type { OptionsCharts } from './types';
@@ -16,7 +16,7 @@ export function getCanvas(selector: string): HTMLCanvasElement {
 
 export async function readHistory(): Promise<HistoryStore> {
     const { history: storedHistory } = await chrome.storage.local.get('history');
-    return isHistoryStore(storedHistory) ? storedHistory : {};
+    return normalizeHistoryStore(storedHistory);
 }
 
 function getChartLabels(history: HistoryStore, range: number): string[] {
@@ -62,6 +62,72 @@ function getStatTotals(history: HistoryStore): StatTotals {
     return sum;
 }
 
+function createLineDatasets(data: StatSeries) {
+    const transparent = '#ffffff00';
+    const pointBackgroundColor = 'white';
+    return [
+        {
+            label: '게시물 조회',
+            data: data.view,
+            yAxisID: 'y-a1',
+            backgroundColor: transparent,
+            borderColor: '#337ab7',
+            tension: 0,
+            type: 'line' as const,
+            borderWidth: 3,
+            pointRadius: 3,
+            pointBorderWidth: 2,
+            pointBackgroundColor,
+        },
+        {
+            label: '글 작성',
+            data: data.write,
+            yAxisID: 'y-a2',
+            backgroundColor: transparent,
+            borderColor: '#f3bc206b',
+            tension: 0,
+            borderWidth: 3,
+            pointRadius: 0,
+            pointBorderWidth: 2,
+            pointBackgroundColor,
+        },
+        {
+            label: '댓글 작성',
+            data: data.reply,
+            yAxisID: 'y-a2',
+            backgroundColor: transparent,
+            borderColor: '#2eb6238c',
+            tension: 0,
+            borderWidth: 3,
+            pointRadius: 0,
+            pointBorderWidth: 2,
+            pointBackgroundColor,
+        },
+    ];
+}
+
+function buildLineChartData(history: HistoryStore, range: number) {
+    const data = getStatSeries(history, range);
+    return {
+        labels: getChartLabels(history, range),
+        datasets: createLineDatasets(data),
+        series: data,
+    };
+}
+
+function buildDoughnutChartData(history: HistoryStore) {
+    const grouped = groupByGall(history);
+    const labels: string[] = [];
+    const series: StatSeries = { view: [], write: [], reply: [] };
+    for (const value of Object.values(grouped)) {
+        labels.push(value.name);
+        series.view.push(value.view);
+        series.write.push(value.write);
+        series.reply.push(value.reply);
+    }
+    return { labels, series };
+}
+
 function updateStatTotals(history: HistoryStore): void {
     const total = getStatTotals(history);
     setText('.view-box-part-detail.view', total.view);
@@ -70,52 +136,15 @@ function updateStatTotals(history: HistoryStore): void {
 }
 
 function setupChart(ctx: ChartItem, range: number, history: HistoryStore): InstanceType<typeof Chart> {
-    const data = getStatSeries(history, range);
+    const chartData = buildLineChartData(history, range);
 
     Chart.defaults.font.family = 'Noto Sans KR';
     Chart.defaults.font.weight = 'bold';
     const myChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: getChartLabels(history, range),
-            datasets: [
-                {
-                    label: '게시물 조회',
-                    data: data.view,
-                    yAxisID: 'y-a1',
-                    backgroundColor:'#ffffff00',
-                    borderColor: '#337ab7',
-                    tension: 0,
-                    type:'line',
-                    borderWidth: 3,
-                    pointRadius: 3,
-                    pointBorderWidth: 2,
-                    pointBackgroundColor: 'white'
-                },
-                {
-                    label: '글 작성',
-                    data: data.write,
-                    yAxisID: 'y-a2',
-                    backgroundColor:'#ffffff00',
-                    borderColor: '#f3bc206b',
-                    tension: 0,
-                    borderWidth: 3,
-                    pointRadius: 0,
-                    pointBorderWidth: 2,
-                    pointBackgroundColor: 'white'
-                },
-                {
-                    label: '댓글 작성',
-                    data: data.reply,
-                    yAxisID: 'y-a2',
-                    backgroundColor:'#ffffff00',
-                    borderColor: '#2eb6238c',
-                    tension: 0,
-                    borderWidth: 3,
-                    pointRadius: 0,
-                    pointBorderWidth: 2,
-                    pointBackgroundColor: 'white'
-                }]
+            labels: chartData.labels,
+            datasets: chartData.datasets,
         },
         options: {
             plugins: {
@@ -124,8 +153,8 @@ function setupChart(ctx: ChartItem, range: number, history: HistoryStore): Insta
             },
             scales: {
                 x: { grid: { display: false } },
-                'y-a1': { type:'linear', position: 'left', beginAtZero: true, suggestedMax:getMax(data.view)+530 },
-                'y-a2': { type:'linear', position:'right', beginAtZero: true, suggestedMax:getMax(data.write)+130, grid: { drawOnChartArea: false } }
+                'y-a1': { type:'linear', position: 'left', beginAtZero: true, suggestedMax:getMax(chartData.series.view)+530 },
+                'y-a2': { type:'linear', position:'right', beginAtZero: true, suggestedMax:getMax(chartData.series.write)+130, grid: { drawOnChartArea: false } }
             }
         }
     });
@@ -135,24 +164,16 @@ function setupChart(ctx: ChartItem, range: number, history: HistoryStore): Insta
 }
 
 function setupDoughnutChart(ctx: ChartItem, history: HistoryStore): InstanceType<typeof Chart> {
-    const grouped = groupByGall(history);
-    const label: string[] = [];
-    const data: StatSeries = { view: [], write: [], reply: [] };
-    for (const value of Object.values(grouped)) {
-        label.push(value.name);
-        data.view.push(value.view);
-        data.write.push(value.write);
-        data.reply.push(value.reply);
-    }
+    const data = buildDoughnutChartData(history);
 
     return new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: label,
+            labels: data.labels,
             datasets: [
-                { label: 'My First Dataset', data: data.view, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] },
-                { label: 'My First Dataset', data: data.write, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] },
-                { label: 'My First Dataset', data: data.reply, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] }
+                { label: 'My First Dataset', data: data.series.view, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] },
+                { label: 'My First Dataset', data: data.series.write, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] },
+                { label: 'My First Dataset', data: data.series.reply, backgroundColor: ['#ff6384', '#ff9f43', '#ffcd59', '#4bc0c0', '#38a2ea', '#9a68fe', '#c9cbcf'] }
             ]
         },
         options: {

@@ -3,6 +3,34 @@ import { contentBlock, contentMemo } from './filters';
 import { app } from './messaging';
 import { config, keyEnum, normalizeKey } from './state';
 
+function focusAndClick(selector: string): HTMLElement | null {
+    const element = document.querySelector<HTMLElement>(selector);
+    element?.focus();
+    element?.click();
+    return element ?? null;
+}
+
+function dispatchMouseoverToDivs(): void {
+    document.querySelectorAll('div').forEach(function (element) {
+        element.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
+    });
+}
+
+function bindSubjectTabFocus(subject: HTMLElement | null): void {
+    subject?.addEventListener('keydown', function (event) {
+        if(normalizeKey(event) === keyEnum.TAB) {
+            event.preventDefault();
+            document.querySelector<HTMLElement>('#tx_canvas_wysiwyg')?.focus();
+        }
+    });
+}
+
+function bindWriteSubmitTracking(): void {
+    delegate(document, 'click', '.btn_blue.btn_svc.write', function () {
+        app.sendToBackground('write');
+    });
+}
+
 export const postprocessing = {
     dialogBackgroundColor: 'white',
     blurImage() {
@@ -28,29 +56,12 @@ export const postprocessing = {
         });
     },
     avoidServiceCode() {
-        document.querySelector<HTMLElement>('.write_infobox')?.focus();
-        document.querySelector<HTMLElement>('.write_infobox')?.click();
-        document.querySelector<HTMLElement>('#subject')?.focus();
-        document.querySelector<HTMLElement>('#subject')?.click();
-        document.querySelector<HTMLElement>('.write_infobox')?.focus();
-        document.querySelector<HTMLElement>('.write_infobox')?.click();
-        const subject = document.querySelector<HTMLElement>('#subject');
-        subject?.focus();
-        subject?.click();
-        subject?.addEventListener('keydown', function (event) {
-            if(normalizeKey(event) === keyEnum.TAB) {
-                event.preventDefault();
-                document.querySelector<HTMLElement>('#tx_canvas_wysiwyg')?.focus();
-            }
-        });
-
-        document.querySelectorAll('div').forEach(function (element) {
-            element.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
-        });
-
-        delegate(document, 'click', '.btn_blue.btn_svc.write', function () {
-            app.sendToBackground('write');
-        });
+        focusAndClick('.write_infobox');
+        focusAndClick('#subject');
+        focusAndClick('.write_infobox');
+        bindSubjectTabFocus(focusAndClick('#subject'));
+        dispatchMouseoverToDivs();
+        bindWriteSubmitTracking();
     },
     setBackgroundColorForDarkMode() {
         if(!document.querySelector('#css-darkmode')) return 'white';

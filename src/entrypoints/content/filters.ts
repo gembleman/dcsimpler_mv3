@@ -3,7 +3,7 @@ import { pageContext } from './context';
 import { qsa, setElementVisibility } from './dom';
 import { config, filter, type CompiledBlacklistFilter, type UserMemoFilter } from './state';
 
-type UserMemoInput = {
+export type UserMemoInput = {
     ip: string[];
     tag: string[];
 };
@@ -96,70 +96,84 @@ function getCommentMemoRoot(): Document {
     return pageContext.calltype == 'lists' && iframe?.contentWindow ? iframe.contentWindow.document : document;
 }
 
-export let contentBlock = {
-    convert : function (input: AppConfig['blacklist_filter']): Record<BlacklistFilterKey, RegExp> {
-        let o = {} as Record<BlacklistFilterKey, RegExp>;
-        (Object.keys(input) as BlacklistFilterKey[]).forEach(elem => o[elem] = new RegExp(input[elem], 'g'));
-        return o;
-    },
+export function compileBlacklistFilter(input: AppConfig['blacklist_filter']): Record<BlacklistFilterKey, RegExp> {
+    const compiled = {} as Record<BlacklistFilterKey, RegExp>;
+    (Object.keys(input) as BlacklistFilterKey[]).forEach((key) => {
+        compiled[key] = new RegExp(input[key], 'g');
+    });
+    return compiled;
+}
+
+export function parseUserMemoFilter(input: string): UserMemoInput {
+    const parsed: UserMemoInput = {ip:[], tag:[]};
+    input.split('\n').forEach(function (elem) {
+        const [ip, tag] = elem.split('-');
+        if(ip == null || tag == null) return;
+        parsed.ip.push(ip);
+        parsed.tag.push(tag);
+    });
+    return parsed;
+}
+
+function applyContentBlockToArticles(articles: Iterable<HTMLElement>, effect?: string): void {
+    for (const article of articles) {
+        const ubWriter = article.querySelector('.ub-writer');
+        const ubWord = article.querySelector<HTMLElement>('.ub-word');
+        if (!ubWriter || !ubWord) continue;
+        const contentBlockReason = findBlockReason(extractWriterInfo(ubWriter, ubWord), filter.blacklist, getContentNoticeInfo(article, ubWord));
+        if (contentBlockReason) applyBlock(article, contentBlockReason, effect);
+    }
+}
+
+function applyContentBlockToComments(comments: Iterable<HTMLElement>, effect?: string): void {
+    for (const comment of comments) {
+        const ubWriter = comment.querySelector('.ub-writer');
+        const ubWord = comment.querySelector<HTMLElement>('.ub-word');
+        if (!ubWriter || !ubWord) continue;
+        const contentBlockReason = findBlockReason(extractWriterInfo(ubWriter, ubWord), filter.blacklist);
+        if (contentBlockReason) applyBlock(comment, contentBlockReason, effect);
+    }
+}
+
+function applyMemoTags(elements: Iterable<Element>): void {
+    for (const element of elements) {
+        const writer = element.querySelector('.ub-writer');
+        if (!writer) continue;
+        const ip = writer.getAttribute('data-ip');
+        const tag = findMemoTag(ip, filter.usermemo);
+        if (ip && tag) applyMemoTag(writer, ip, tag);
+    }
+}
+
+export const contentBlock = {
+    convert : compileBlacklistFilter,
     toContent : function (effect?: string) {
         if(config.blacklist === false) return false;
         const tbody = document.querySelector('tbody');
         if (!tbody) return false;
-        tbody.querySelectorAll<HTMLElement>('.ub-content').forEach(function (article) {
-            const [ ubWriter, ubWord ]  = [ article.querySelector('.ub-writer'), article.querySelector<HTMLElement>('.ub-word') ];
-            if (!ubWriter || !ubWord) return false;
-            const contentBlockReason = findBlockReason(extractWriterInfo(ubWriter, ubWord), filter.blacklist, getContentNoticeInfo(article, ubWord));
-            if (contentBlockReason) applyBlock(article, contentBlockReason, effect);
-        });
+        applyContentBlockToArticles(tbody.querySelectorAll<HTMLElement>('.ub-content'), effect);
     },
     toComment : function (effect?: string, _legacy?: unknown) {
-        if (config.blacklist === false) return false;
+        if(config.blacklist === false) return false;
         const reference = getCommentRoot();
         if (!reference) return false;
-        reference.querySelectorAll<HTMLElement>('.view_comment li[class^=ub-content]').forEach(function (comment) {
-            const [ ubWriter, ubWord ] = [ comment.querySelector('.ub-writer'), comment.querySelector<HTMLElement>('.ub-word') ];
-            if (!ubWriter || !ubWord) return false;
-            const contentBlockReason = findBlockReason(extractWriterInfo(ubWriter, ubWord), filter.blacklist);
-            if (contentBlockReason) applyBlock(comment, contentBlockReason, effect);
-        });
+        applyContentBlockToComments(reference.querySelectorAll<HTMLElement>('.view_comment li[class^=ub-content]'), effect);
     },
     toggleContentDisplay : function (element: HTMLElement, effect?: string) {
         setElementVisibility(element, config.blacklist_view === true, effect);
         return true;
     }
-};
+} as const;
 
-export let contentMemo = {
-    convert : function (input: string): UserMemoInput {
-        let i: UserMemoInput = {ip:[], tag:[]};
-        input.split('\n').forEach(function (elem) {
-            let [ip, tag] = elem.split('-');
-            if(ip == null || tag == null) return false;
-            i.ip.push(ip);
-            i.tag.push(tag);
-        });
-        return i;
-    },
+export const contentMemo = {
+    convert : parseUserMemoFilter,
     toContent : function () {
         if(config.userMemo === false) return;
-        qsa('tbody .ub-content').forEach(function (article) {
-            const writer = article.querySelector('.ub-writer');
-            if (!writer) return;
-            const ip = writer.getAttribute('data-ip');
-            const tag = findMemoTag(ip, filter.usermemo);
-            if (ip && tag) applyMemoTag(writer, ip, tag);
-        });
+        applyMemoTags(qsa('tbody .ub-content'));
     },
     toComment : function () {
         if(config.userMemo === false) return;
         const root = getCommentMemoRoot();
-        qsa('.view_comment li[class^=ub-content]', root).forEach(function (comment) {
-            const writer = comment.querySelector('.ub-writer');
-            if (!writer) return;
-            const ip = writer.getAttribute('data-ip');
-            const tag = findMemoTag(ip, filter.usermemo);
-            if (ip && tag) applyMemoTag(writer, ip, tag);
-        });
+        applyMemoTags(qsa('.view_comment li[class^=ub-content]', root));
     }
-};
+} as const;

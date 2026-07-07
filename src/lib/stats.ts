@@ -1,5 +1,6 @@
 // 사용 통계(history) 관리 — 구 egyptian.js 포팅.
 // 데이터 형태: { "d7/3": { gallId: { name, view, reply, write } } }
+import { isObjectRecord } from './type-guards';
 
 export type StatFlag = 'view' | 'write' | 'reply';
 
@@ -20,8 +21,43 @@ export interface StatRequest {
   flag: StatFlag;
 }
 
+function normalizeNumber(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function normalizeGalleryStat(value: unknown): GalleryStat | null {
+  if (!isObjectRecord(value)) return null;
+  return {
+    name: typeof value.name === 'string' ? value.name : '',
+    view: normalizeNumber(value.view),
+    reply: normalizeNumber(value.reply),
+    write: normalizeNumber(value.write),
+  };
+}
+
+export function normalizeHistoryStore(value: unknown): HistoryStore {
+  if (!isObjectRecord(value)) return {};
+  const history: HistoryStore = {};
+  for (const [date, dayStats] of Object.entries(value)) {
+    if (!isObjectRecord(dayStats)) continue;
+    history[date] = {};
+    for (const [gallId, stat] of Object.entries(dayStats)) {
+      const normalized = normalizeGalleryStat(stat);
+      if (normalized) history[date][gallId] = normalized;
+    }
+  }
+  return history;
+}
+
 export function isHistoryStore(value: unknown): value is HistoryStore {
-  return typeof value === 'object' && value !== null;
+  if (!isObjectRecord(value)) return false;
+  for (const dayStats of Object.values(value)) {
+    if (!isObjectRecord(dayStats)) return false;
+    for (const stat of Object.values(dayStats)) {
+      if (normalizeGalleryStat(stat) === null) return false;
+    }
+  }
+  return true;
 }
 
 function dayKey(date: Date) {
@@ -56,7 +92,7 @@ export function pruneHistory(range = 30) {
   return enqueueHistoryMutation(async () => {
     const { history } = await chrome.storage.local.get('history');
     const skeleton = setupRange(range);
-    const storedHistory = isHistoryStore(history) ? history : {};
+    const storedHistory = normalizeHistoryStore(history);
     for (const key of Object.keys(storedHistory)) {
       if (key in skeleton) skeleton[key] = storedHistory[key];
     }
@@ -71,7 +107,7 @@ export function increaseStat({ id, name = '', flag }: StatRequest) {
   if (id == null || id === '' || id === 'undefined') return Promise.resolve();
   return enqueueHistoryMutation(async () => {
     const { history: storedHistory } = await chrome.storage.local.get('history');
-    const history = isHistoryStore(storedHistory) ? storedHistory : {};
+    const history = normalizeHistoryStore(storedHistory);
     const today = todayKey();
     if (!history[today]) history[today] = {};
     if (!history[today][id]) {
