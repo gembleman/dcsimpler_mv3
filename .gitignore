@@ -28,7 +28,7 @@ npm-debug.log*
 node_modules/
 
 *.md
-!docs/modernization-roadmap.md
+!README.md
 target_html/
 package-lock.json
 pnpm-lock.yaml
