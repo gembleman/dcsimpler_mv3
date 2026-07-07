@@ -1,30 +1,7 @@
-type QueryRoot = Document | DocumentFragment | Element;
-
-export function qs<T extends Element = Element>(selector: string, root: QueryRoot = document): T | null {
-    return root.querySelector(selector);
-}
-
-export function qsa<T extends Element = Element>(selector: string, root: QueryRoot = document): T[] {
-    return Array.from(root.querySelectorAll<T>(selector));
-}
+export { delegate, qs, qsa, type QueryRoot } from '@/lib/dom';
 
 export function parseHtml(text: string): Document {
     return new DOMParser().parseFromString(text, 'text/html');
-}
-
-export function delegate<T extends Element = Element>(
-    root: QueryRoot,
-    eventName: string,
-    selector: string,
-    handler: (this: T, event: Event, target: T) => void,
-) {
-    root.addEventListener(eventName, function (event) {
-        if (!(event.target instanceof Element)) return;
-        const target = event.target.closest(selector);
-        if (!target) return;
-        if (root !== document && !root.contains(target)) return;
-        handler.call(target as T, event, target as T);
-    });
 }
 
 export function trigger(element: EventTarget | null | undefined, eventName: string) {

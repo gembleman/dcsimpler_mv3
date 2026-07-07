@@ -8,6 +8,7 @@ import { getConfig, saveConfig } from '@/lib/storage';
 import { groupByDay, groupByGall, clearHistory, isHistoryStore, type HistoryStore } from '@/lib/stats';
 import TLN from '@/lib/tln';
 import type { AppConfig, BlacklistFilterKey } from '@/lib/default-config';
+import { delegate, qs, qsa } from '@/lib/dom';
 
 const updateDescription = '업데이트되었습니다 변경사항을 확인해주세요';
 
@@ -29,7 +30,6 @@ function isAutoInsertImageData(value: unknown): value is AutoInsertImageData {
         && (record.filename === undefined || typeof record.filename === 'string');
 }
 
-type QueryRoot = Document | DocumentFragment | Element;
 type ElementTarget =
     | string
     | Element
@@ -61,28 +61,6 @@ const booleanConfigKeys = [
     'alignLeftContentWriter',
 ] as const satisfies readonly (keyof AppConfig)[];
 type BooleanConfigKey = typeof booleanConfigKeys[number];
-
-function qs<T extends Element = HTMLElement>(selector: string, root: QueryRoot = document): T | null {
-    return root.querySelector<T>(selector);
-}
-
-function qsa<T extends Element = HTMLElement>(selector: string, root: QueryRoot = document): T[] {
-    return Array.from(root.querySelectorAll<T>(selector));
-}
-
-function delegate<T extends Element = HTMLElement, E extends Event = Event>(
-    root: QueryRoot,
-    eventName: string,
-    selector: string,
-    handler: (this: T, event: E, target: T) => void,
-): void {
-    root.addEventListener(eventName, function (event) {
-        if (!(event.target instanceof Element)) return;
-        const target = event.target.closest(selector);
-        if (!target || (root !== document && !root.contains(target))) return;
-        handler.call(target as T, event as E, target as T);
-    });
-}
 
 function isBlacklistFilterKey(value: string | undefined): value is BlacklistFilterKey {
     return value !== undefined && blacklistKeys.includes(value as BlacklistFilterKey);
@@ -245,15 +223,65 @@ async function saveCurrentConfig(): Promise<void> {
     await saveConfig(config);
 }
 
+function getChartLabels(range: number): string[] {
+    const keys = Object.keys(history);
+    const output: string[] = [];
+    for (let index = 0; index < keys.length; index++) {
+        output.push(keys[index].replace('d', '').replace('/', '-'));
+        if (range && index + 1 === range) break;
+    }
+    return output.reverse();
+}
+
+function getStatSeries(range: number): StatSeries {
+    const grouped = groupByDay(history);
+    const output: StatSeries = { view: [], write: [], reply: [] };
+    let count = 0;
+    for (const value of Object.values(grouped)) {
+        output.view.push(value.view);
+        output.write.push(value.write);
+        output.reply.push(value.reply);
+        count++;
+        if(range && count === range) break;
+    }
+    output.view.reverse();
+    output.write.reverse();
+    output.reply.reverse();
+    return output;
+}
+
+function getMax(numArray: number[]): number {
+    if (numArray.length === 0) return 0;
+    return Math.max.apply(null, numArray);
+}
+
+function getStatTotals(): StatTotals {
+    const grouped = groupByDay(history);
+    const sum: StatTotals = { view: 0, write: 0, reply: 0 };
+    for (const value of Object.values(grouped)) {
+        sum.view += value.view;
+        sum.write += value.write;
+        sum.reply += value.reply;
+    }
+    return sum;
+}
+
+function updateStatTotals(): void {
+    const total = getStatTotals();
+    setText('.view-box-part-detail.view', total.view);
+    setText('.view-box-part-detail.write', total.write);
+    setText('.view-box-part-detail.reply', total.reply);
+}
+
 function setupChart(ctx: ChartItem, range: number): InstanceType<typeof Chart> {
-    const data = getValues(range);
+    const data = getStatSeries(range);
 
     Chart.defaults.font.family = 'Noto Sans KR';
     Chart.defaults.font.weight = 'bold';
     const myChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: getLabels(range),
+            labels: getChartLabels(range),
             datasets: [
                 {
                     label: '게시물 조회',
@@ -306,53 +334,7 @@ function setupChart(ctx: ChartItem, range: number): InstanceType<typeof Chart> {
         }
     });
 
-    function getLabels(range: number): string[] {
-        const keys = Object.keys(history);
-        const output: string[] = [];
-        for (let index = 0; index < keys.length; index++) {
-            output.push(keys[index].replace('d', '').replace('/', '-'));
-            if (range && index + 1 === range) break;
-        }
-        return output.reverse();
-    }
-
-    function getValues(range: number): StatSeries {
-        const grouped = groupByDay(history);
-        const output: StatSeries = { view: [], write: [], reply: [] };
-        let count = 0;
-        for (const value of Object.values(grouped)) {
-            output.view.push(value.view);
-            output.write.push(value.write);
-            output.reply.push(value.reply);
-            count++;
-            if(range && count === range) break;
-        }
-        output.view.reverse();
-        output.write.reverse();
-        output.reply.reverse();
-        return output;
-    }
-
-    function getMax(numArray: number[]): number {
-        if (numArray.length === 0) return 0;
-        return Math.max.apply(null, numArray);
-    }
-    function getSum(): StatTotals {
-        const grouped = groupByDay(history);
-        const sum: StatTotals = { view: 0, write: 0, reply: 0 };
-        for (const value of Object.values(grouped)) {
-            sum.view += value.view;
-            sum.write += value.write;
-            sum.reply += value.reply;
-        }
-        return sum;
-    }
-
-    const total = getSum();
-    setText('.view-box-part-detail.view', total.view);
-    setText('.view-box-part-detail.write', total.write);
-    setText('.view-box-part-detail.reply', total.reply);
-
+    updateStatTotals();
     return myChart;
 }
 
@@ -511,7 +493,7 @@ function testfield(obj: Record<BlacklistFilterKey, HTMLElement | null>): void {
     });
 }
 
-function bindOptionHandlers(charts: OptionsCharts): void {
+function bindMenuHandlers(): void {
     delegate(document, 'click', '.item', function () {
         const index = this.getAttribute('index');
         if(this.getAttribute('pageMove') != null) {window.open('https://chrome.google.com/webstore/detail/dcsimpler/kgpiejjjpjkcijopeabfleliifbhfnci?hl=ko'); return;}
@@ -519,7 +501,9 @@ function bindOptionHandlers(charts: OptionsCharts): void {
         qsa('.item').forEach((item) => item.classList.toggle('clicked', item.getAttribute('index') === index));
         qsa('.menu-container').forEach((container) => setDisplay(container, container.getAttribute('index') === index));
     });
+}
 
+function bindMinimizeLayoutHandlers(): void {
     setInputValue('.editText#input-layout-minimize', config.minimizeLayout_filter);
     delegate<HTMLElement>(document, 'click', '.saveText#button-layout-minimize', async function () {
         const element = getPreviousInput(this);
@@ -537,7 +521,9 @@ function bindOptionHandlers(charts: OptionsCharts): void {
         config.minimizeLayout_filter = value;
         await saveCurrentConfig();
     });
+}
 
+function bindBlacklistHandlers(): void {
     delegate<HTMLInputElement>(document, 'click', 'input.saveText.blac', function () {
         qsa('.saveText.blac').forEach((button) => button.classList.remove('selected'));
         this.classList.add('selected');
@@ -585,7 +571,9 @@ function bindOptionHandlers(charts: OptionsCharts): void {
             event.stopPropagation();
         }
     });
+}
 
+function bindUserMemoHandlers(): void {
     delegate<HTMLElement>(document, 'click', '.saveText.userMemo.save', async function () {
         const textArea = qs<HTMLTextAreaElement>('.editText.userMemo');
         if (!textArea) return;
@@ -603,7 +591,9 @@ function bindOptionHandlers(charts: OptionsCharts): void {
             event.stopPropagation();
         }
     });
+}
 
+function bindTextFileHandlers(): void {
     delegate<HTMLElement>(document, 'click', '.saveText.export', function () {
         const textarea = findSectionTextarea(this);
         if (!textarea) return;
@@ -619,7 +609,9 @@ function bindOptionHandlers(charts: OptionsCharts): void {
             flashOk(textarea);
         });
     });
+}
 
+function bindConfigToggleHandlers(): void {
     document.addEventListener('change', async function (event) {
         if (!(event.target instanceof HTMLInputElement) || !event.target.matches('.toggler')) return;
         const key = event.target.getAttribute('t');
@@ -638,7 +630,9 @@ function bindOptionHandlers(charts: OptionsCharts): void {
     delegate<HTMLInputElement, KeyboardEvent>(document, 'keydown', 'input.editText', function (event) {
         if(event.key === 'Enter' && this.nextElementSibling instanceof HTMLElement) this.nextElementSibling.click();
     });
+}
 
+function bindImageUploadHandlers(): void {
     qs('.upload-image-delegator')?.addEventListener('click', function () { qs('#upload-image')?.click(); });
     qs('.upload-image-deletor')?.addEventListener('click', async function () {
         await chrome.storage.local.set({ autoInsertImageData: {} });
@@ -674,30 +668,42 @@ function bindOptionHandlers(charts: OptionsCharts): void {
         };
         reader.readAsDataURL(file);
     });
+}
 
-    const recreateCharts = async function (): Promise<void> {
-        history = await readHistory();
-        charts.chart.destroy();
-        charts.chart = setupChart(getCanvas('#weekly-chart'), 7);
-        charts.monthChart.destroy();
-        charts.monthChart = setupChart(getCanvas('#monthly-chart'), 30);
-        charts.doughnutChart.destroy();
-        charts.doughnutChart = setupDoughnutChart(getCanvas('#doughnut-chart'));
-    };
+async function recreateCharts(charts: OptionsCharts): Promise<void> {
+    history = await readHistory();
+    charts.chart.destroy();
+    charts.chart = setupChart(getCanvas('#weekly-chart'), 7);
+    charts.monthChart.destroy();
+    charts.monthChart = setupChart(getCanvas('#monthly-chart'), 30);
+    charts.doughnutChart.destroy();
+    charts.doughnutChart = setupDoughnutChart(getCanvas('#doughnut-chart'));
+}
 
+function bindStatsHandlers(charts: OptionsCharts): void {
     delegate(document, 'click', '#so-clear', async function () {
         const confirmWindow = confirm('기록을 삭제하시겠습니까?');
         if (confirmWindow) {
             await clearHistory(30);
-            await recreateCharts();
+            await recreateCharts(charts);
         }
     });
 
     delegate(document, 'click', '#so-refresh', async function () {
-        await recreateCharts();
+        await recreateCharts(charts);
     });
 }
 
+function bindOptionHandlers(charts: OptionsCharts): void {
+    bindMenuHandlers();
+    bindMinimizeLayoutHandlers();
+    bindBlacklistHandlers();
+    bindUserMemoHandlers();
+    bindTextFileHandlers();
+    bindConfigToggleHandlers();
+    bindImageUploadHandlers();
+    bindStatsHandlers(charts);
+}
 async function initOptions(): Promise<void> {
     config = await getConfig();
     history = await readHistory();

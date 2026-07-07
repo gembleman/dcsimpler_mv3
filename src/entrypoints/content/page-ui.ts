@@ -5,6 +5,7 @@ import { contentBlock, contentMemo } from './filters';
 import { config } from './state';
 import { bindHotkeys } from './hotkeys';
 import type { OpenConfigMessage } from '../../lib/messages';
+import { isObjectRecord } from '../../lib/type-guards';
 
 interface PageUiDependencies {
     loadList: (requestURL?: string) => void | Promise<void>;
@@ -36,9 +37,6 @@ type ManipulateMethodName =
 
 let pageUiDependencies: PageUiDependencies = { loadList: () => undefined };
 
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
-}
 
 export function setPageUiDependencies(dependencies: Partial<PageUiDependencies>) {
     pageUiDependencies = { ...pageUiDependencies, ...dependencies };

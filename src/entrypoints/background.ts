@@ -99,28 +99,36 @@ function attachUploadedImage(mockdata: unknown) {
   return true;
 }
 
-async function autoInsertImage(details: { tabId: number }) {
-  const config = await getConfig();
-  if (config.autoInsertImage === false) return;
+type WritePageInfo = {
+  rKey?: string;
+  gallId?: string;
+};
 
-  const { autoInsertImageData: data } =
-    await chrome.storage.local.get('autoInsertImageData');
-  if (!isAutoInsertImageData(data)) return;
+type UploadedImageAttachment = {
+  imageurl: string;
+  filename?: string;
+  filesize?: number;
+  imagealign: 'L';
+  originalurl?: string;
+  thumburl?: string;
+  file_temp_no?: string;
+};
 
-  let injection;
+async function inspectWritePage(tabId: number): Promise<Required<WritePageInfo> | null> {
   try {
-    [injection] = await chrome.scripting.executeScript({
-      target: { tabId: details.tabId },
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId },
       func: collectWritePageInfo,
     });
+    const pageInfo = injection?.result;
+    return pageInfo?.rKey && pageInfo?.gallId ? pageInfo : null;
   } catch (e) {
     console.log('Write page inspection failed.', e);
-    return;
+    return null;
   }
-  const pageInfo = injection?.result;
-  if (!pageInfo?.rKey || !pageInfo?.gallId) return;
+}
 
-  let uploaded: UploadedImageData | undefined;
+async function uploadAutoInsertImage(data: AutoInsertImageData, pageInfo: Required<WritePageInfo>): Promise<UploadedImageData | null> {
   try {
     const formData = new FormData();
     formData.append('r_key', pageInfo.rKey);
@@ -133,47 +141,70 @@ async function autoInsertImage(details: { tabId: number }) {
       credentials: 'include',
     });
     const uploadResponse = await res.json() as { files?: UploadedImageData[] };
-    uploaded = uploadResponse.files?.[0];
+    return uploadResponse.files?.[0] ?? null;
   } catch (e) {
     console.log('Image transfer failed.', e);
-    return;
+    return null;
   }
+}
+
+function getUploadedImageUrl(uploaded: UploadedImageData): string | null {
+  for (const key of Object.keys(uploaded)) {
+    const value = uploaded[key];
+    if (key.includes('web') && key.includes('url') && typeof value === 'string') return value;
+  }
+  return uploaded.url ?? null;
+}
+
+function toUploadedImageAttachment(uploaded: UploadedImageData, imageUrl: string): UploadedImageAttachment {
+  return {
+    imageurl: imageUrl,
+    filename: uploaded.name,
+    filesize: uploaded.size,
+    imagealign: 'L',
+    originalurl: uploaded.url,
+    thumburl: uploaded._s_url,
+    file_temp_no: uploaded.file_temp_no,
+  };
+}
+
+async function attachUploadedImageToTab(tabId: number, uploaded: UploadedImageData, imageUrl: string): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      func: attachUploadedImage,
+      args: [toUploadedImageAttachment(uploaded, imageUrl)],
+    });
+  } catch (e) {
+    console.log('Image attach failed.', e);
+  }
+}
+
+async function autoInsertImage(details: { tabId: number }) {
+  const config = await getConfig();
+  if (config.autoInsertImage === false) return;
+
+  const { autoInsertImageData: data } =
+    await chrome.storage.local.get('autoInsertImageData');
+  if (!isAutoInsertImageData(data)) return;
+
+  const pageInfo = await inspectWritePage(details.tabId);
+  if (!pageInfo?.rKey || !pageInfo?.gallId) return;
+
+  const uploaded = await uploadAutoInsertImage(data, pageInfo);
   if (!uploaded) {
     console.log('Image transfer failed: empty upload response.');
     return;
   }
 
-  let imageUrl: string | null = null;
-  for (const key of Object.keys(uploaded)) {
-    const value = uploaded[key];
-    if (key.includes('web') && key.includes('url') && typeof value === 'string') imageUrl = value;
-  }
-  if (imageUrl == null) imageUrl = uploaded.url ?? null;
+  const imageUrl = getUploadedImageUrl(uploaded);
   if (!imageUrl) {
     console.log('Image transfer failed: uploaded image URL is missing.');
     return;
   }
 
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: details.tabId },
-      world: 'MAIN',
-      func: attachUploadedImage,
-      args: [
-        {
-          imageurl: imageUrl,
-          filename: uploaded.name,
-          filesize: uploaded.size,
-          imagealign: 'L',
-          originalurl: uploaded.url,
-          thumburl: uploaded._s_url,
-          file_temp_no: uploaded.file_temp_no,
-        },
-      ],
-    });
-  } catch (e) {
-    console.log('Image attach failed.', e);
-  }
+  await attachUploadedImageToTab(details.tabId, uploaded, imageUrl);
 }
 
 export default defineBackground(() => {

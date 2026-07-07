@@ -1,5 +1,6 @@
 import type { AppConfig } from './default-config';
 import type { StatFlag, StatRequest } from './stats';
+import { isObjectRecord } from './type-guards';
 
 export const STAT_FLAGS = ['view', 'write', 'reply'] as const satisfies readonly StatFlag[];
 
@@ -30,9 +31,6 @@ export type StatResponseMessage = {
   baz: 'success' | 'fail';
 };
 
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 export function isStatFlag(value: unknown): value is StatFlag {
   return typeof value === 'string' && (STAT_FLAGS as readonly string[]).includes(value);
