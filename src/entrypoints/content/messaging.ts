@@ -1,6 +1,6 @@
 import { pageContext } from './context';
 
-export let app = {};
+export let app: any = {};
 
 app.requestConfig = function () {
     return new Promise ( function (resolve, reject) {

@@ -5,7 +5,7 @@ import { contentBlock, contentMemo } from './filters';
 import { manipulateDOM } from './page-ui';
 import { config } from './state';
 
-let listLoaderDependencies = { loadArticleViaDialog: null };
+let listLoaderDependencies: any = { loadArticleViaDialog: null };
 
 export function setListLoaderDependencies(dependencies) {
     listLoaderDependencies = { ...listLoaderDependencies, ...dependencies };
@@ -16,7 +16,7 @@ function escapeRegExp(value) {
 }
 
 function keywordHighlighting() {
-    let keywordElement = document.querySelector('input[type="hidden"][name="s_keyword"], input[name="s_keyword"]');
+    let keywordElement: any = document.querySelector('input[type="hidden"][name="s_keyword"], input[name="s_keyword"]');
     let keyword = keywordElement ? keywordElement.value : undefined;
     if (keyword && keyword != '' && keyword != 'null') {
         let keywordRegex = new RegExp(escapeRegExp(keyword));
@@ -41,7 +41,7 @@ let listController = function () {
 
 var lc = new listController();
 
-export let loadList = async function (requestURL) {
+export let loadList = async function (requestURL?: string) {
     manipulateDOM.setProgress(0);
     if(lc.controller) lc.controller.abort();
     if(requestURL == null) requestURL = location.href;
@@ -58,7 +58,7 @@ export let loadList = async function (requestURL) {
         history.replaceState({data: 'getLists'}, 'title', requestURL);
         let listDocument = parseHtml(await res.text());
 
-        var newList = listDocument.querySelector('.gall_list');
+        var newList: any = listDocument.querySelector('.gall_list');
         if (newList) {
             newList = newList.cloneNode(true);
             newList.classList.add('onload');

@@ -29,7 +29,7 @@ export const TLN = {
             return console.warn("[tln.js] textarea of id '"+id+"' is already numbered");
         }
         ta.classList.add("tln-active");
-        ta.style = {};
+        (ta as any).style = {};
 
         let el = document.createElement("div");
         ta.parentNode.insertBefore(el, ta);

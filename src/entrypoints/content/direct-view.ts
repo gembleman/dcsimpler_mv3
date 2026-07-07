@@ -6,7 +6,7 @@ import { manipulateDOM } from './page-ui';
 import { postprocessing } from './postprocess';
 import { keyEnum, normalizeKey } from './state';
 
-let activeDialog = null;
+let activeDialog: any = null;
 
 export function closeDialog() {
     if (activeDialog?.open) activeDialog.close();
@@ -50,7 +50,7 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
             if(!comments.length) iframe.style.display = 'none';
             comments.forEach(hideSiblingsOfParents);
             const styleFragment = iframeDocument.createRange().createContextualFragment(innerStyle);
-            const lastStylesheet = Array.from(iframeDocument.querySelectorAll("head link[rel='stylesheet']")).at(-1);
+            const lastStylesheet: any = Array.from(iframeDocument.querySelectorAll("head link[rel='stylesheet']")).at(-1);
             if (lastStylesheet) lastStylesheet.after(styleFragment);
             else iframeDocument.head?.append(styleFragment);
 
@@ -105,7 +105,7 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
     function hideSiblingsOfParents(element) {
         let parent = element.parentElement;
         while (parent && parent.parentElement) {
-            Array.from(parent.parentElement.children).forEach((sibling) => {
+            Array.from(parent.parentElement.children).forEach((sibling: any) => {
                 if (sibling !== parent) sibling.style.display = 'none';
             });
             parent = parent.parentElement;
@@ -154,7 +154,7 @@ let openDialog = function(position, callback) {
     dialog.id = 'dcs_dialog';
     dialog.innerHTML = '<button type="button" class="dcs-dialog-close" aria-label="close"></button><div id="dcs_dialog_body"></div>';
     document.body.prepend(dialog);
-    const body = dialog.querySelector('#dcs_dialog_body');
+    const body: any = dialog.querySelector('#dcs_dialog_body');
     activeDialog = dialog;
 
     positionDialog(dialog, position);
@@ -184,7 +184,7 @@ let openDialog = function(position, callback) {
         if (focusCmt) focusCmt.scrollIntoView();
     });
 
-    typeof callback == 'function' ? callback(url, body) : null;
+    typeof callback == 'function' ? callback(undefined, body) : null;
     return body;
 };
 

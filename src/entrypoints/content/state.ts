@@ -1,5 +1,5 @@
-export let config;
-export const filter = {
+export let config: any;
+export const filter: any = {
     blacklist: {},
     usermemo: { ip: [], tag: [] }
 };

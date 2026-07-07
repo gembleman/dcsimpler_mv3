@@ -8,7 +8,7 @@ export let contentBlock = {
         Object.keys(input).forEach(elem => o[elem] = new RegExp(input[elem], 'g'));
         return o;
     },
-    toContent : function (effect) {
+    toContent : function (effect?: string) {
         let that = this;
         if(config.blacklist === false) return false;
         const tbody = document.querySelector('tbody');
@@ -45,7 +45,7 @@ export let contentBlock = {
             }
         });
     },
-    toComment : function (effect) {
+    toComment : function (effect?: string, _legacy?: unknown) {
         let that = this;
         if (config.blacklist === false) return false;
         const iframe = document.querySelector('#dcs_iframe');

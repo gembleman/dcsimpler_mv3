@@ -5,13 +5,13 @@ import { contentBlock, contentMemo } from './filters';
 import { config } from './state';
 import { bindHotkeys } from './hotkeys';
 
-let pageUiDependencies = { loadList: null };
+let pageUiDependencies: any = { loadList: null };
 
 export function setPageUiDependencies(dependencies) {
     pageUiDependencies = { ...pageUiDependencies, ...dependencies };
 }
 
-export let manipulateDOM = {
+export let manipulateDOM: any = {
     wrapLists: () => {
         const gallList = document.querySelector('.gall_list');
         if (!gallList || gallList.parentElement?.classList.contains('wrapGL')) return;
@@ -22,12 +22,12 @@ export let manipulateDOM = {
     },
     arrayTab: () => {
         qsa('.array_tab').forEach((tab) => {
-            Array.from(tab.children).filter((child) => child.tagName === 'BUTTON').forEach((button) => button.remove());
+            Array.from(tab.children).filter((child: any) => child.tagName === 'BUTTON').forEach((button: any) => button.remove());
             tab.insertAdjacentHTML('beforeend', newBtnButton(''));
             tab.insertAdjacentHTML('afterbegin', '<div class="dialog-fixer"> fixer </div>');
         });
         qsa('.list_bottom_btnbox .fl, .view_bottom_btnbox .fl').forEach((box) => {
-            Array.from(box.children).filter((child) => child.tagName === 'BUTTON').forEach((button) => button.remove());
+            Array.from(box.children).filter((child: any) => child.tagName === 'BUTTON').forEach((button: any) => button.remove());
             box.insertAdjacentHTML('beforeend', '<div class="array_tab left_box">'+newBtnButton('goTop')+'</div>');
         });
 
@@ -180,7 +180,7 @@ export let manipulateDOM = {
             if(!Array.isArray(latelyGalleries)) return fragment;
             latelyGalleries.forEach(function (elem, idx) {
                 let wrapper = document.createElement('div');
-                wrapper.setAttribute('index', idx);
+                wrapper.setAttribute('index', String(idx));
 
                 let anchor = document.createElement('a');
                 anchor.href = createHref(elem.link);

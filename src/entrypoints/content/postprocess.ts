@@ -3,7 +3,7 @@ import { contentBlock, contentMemo } from './filters';
 import { app } from './messaging';
 import { config, keyEnum, normalizeKey } from './state';
 
-export let postprocessing = {};
+export let postprocessing: any = {};
 
 postprocessing.blurImage = function () {
     if(config.blurImage === false) return;

@@ -36,13 +36,13 @@ function dataUrlToFile(dataurl, filename) {
 
 // 글쓰기 페이지에서 에디터 초기화 + r_key/갤러리 id 수집 (isolated world)
 function collectWritePageInfo() {
-  const editor = document.getElementById('tx_canvas_wysiwyg');
+  const editor: any = document.getElementById('tx_canvas_wysiwyg');
   if (editor) {
-    let doc = editor.contentWindow || editor.contentDocument;
+    let doc: any = editor.contentWindow || editor.contentDocument;
     if (doc.document) doc = doc.document;
     doc.body.innerHTML = '';
   }
-  const status = document.getElementById('upload_status');
+  const status: any = document.getElementById('upload_status');
   if (status) status.value = 'Y';
   return {
     rKey: document.getElementById('r_key')?.value,

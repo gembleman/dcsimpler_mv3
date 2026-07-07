@@ -1,11 +1,11 @@
-export let pageContext;
+export let pageContext: any;
 
 export function setPageContext(nextContext) {
     pageContext = nextContext;
 }
 
 export function createPageContext(locationRef = location) {
-    let context = {};
+    let context: any = {};
     context = parsePathname2(locationRef.pathname);
     context.pathname = parsePathname(locationRef.pathname).reverse();
     context.calltype = context.pathname[0];

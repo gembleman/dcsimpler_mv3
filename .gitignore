@@ -29,3 +29,5 @@ node_modules/
 
 *.md
 target_html/
+package-lock.json
+pnpm-lock.yaml

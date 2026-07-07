@@ -1,16 +1,16 @@
-export function qs(selector, root = document) {
+export function qs(selector: string, root: any = document): any {
     return root.querySelector(selector);
 }
 
-export function qsa(selector, root = document) {
+export function qsa(selector: string, root: any = document): any[] {
     return Array.from(root.querySelectorAll(selector));
 }
 
-export function parseHtml(text) {
+export function parseHtml(text: string): Document {
     return new DOMParser().parseFromString(text, 'text/html');
 }
 
-export function delegate(root, eventName, selector, handler) {
+export function delegate(root: any, eventName: string, selector: string, handler: any) {
     root.addEventListener(eventName, function (event) {
         if (!(event.target instanceof Element)) return;
         const target = event.target.closest(selector);
@@ -20,12 +20,12 @@ export function delegate(root, eventName, selector, handler) {
     });
 }
 
-export function trigger(element, eventName) {
+export function trigger(element: any, eventName: string) {
     if (!element) return;
     element.dispatchEvent(new MouseEvent(eventName, { bubbles: true, cancelable: true, view: window }));
 }
 
-export function setElementVisibility(element, visible, effect) {
+export function setElementVisibility(element: any, visible: boolean, effect?: string) {
     if (!element) return;
     if (effect === 'fade' && typeof element.animate === 'function') {
         if (visible) element.style.display = '';
@@ -42,10 +42,10 @@ export function setElementVisibility(element, visible, effect) {
     element.style.display = visible ? '' : 'none';
 }
 
-export function isEditableTarget(target) {
+export function isEditableTarget(target: any) {
     return target instanceof Element && target.matches('input, textarea');
 }
 
-export function isDialogTarget(target) {
+export function isDialogTarget(target: any) {
     return target instanceof Element && target.matches('#dcs_dialog, #dcs_dialog *');
 }
