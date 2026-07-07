@@ -5,6 +5,7 @@
 // - tabs.insertCSS → scripting.insertCSS
 // - 설치 시 alert → 옵션 페이지 열기로 대체, requestUpdateCheck 제거(웹스토어가 처리)
 import { getConfig, ensureConfig } from '@/lib/storage';
+import type { AppConfig } from '@/lib/default-config';
 import { pruneHistory, increaseStat } from '@/lib/stats';
 import {
   isConfigRequestMessage,
@@ -23,6 +24,21 @@ interface AutoInsertImageData {
   filebyte: string;
 }
 
+interface UploadedImageData {
+  [key: string]: unknown;
+  name?: string;
+  size?: number;
+  url?: string;
+  _s_url?: string;
+  file_temp_no?: string;
+}
+
+type PreprocessConfigKey =
+  | 'upScale'
+  | 'minimizeLayout'
+  | 'blurImage'
+  | 'alignLeftContentWriter';
+
 function isAutoInsertImageData(value: unknown): value is AutoInsertImageData {
   if (typeof value !== 'object' || value === null) return false;
   const data = value as Partial<AutoInsertImageData>;
@@ -35,19 +51,21 @@ function isAutoInsertImageData(value: unknown): value is AutoInsertImageData {
 
 // 프리프로세싱 CSS (구 preprocessing.*)
 const PREPROCESS_CSS = {
-  upScale: () =>
+  upScale: (_config: AppConfig) =>
     '.gall_tit {font-size: 14px !important;} .gall_list td {padding: 3.5px 4px 3.5px 4px !important;}',
-  minimizeLayout: (config) =>
+  minimizeLayout: (config: AppConfig) =>
     config.minimizeLayout_filter + '{display:none !important}',
-  blurImage: () =>
+  blurImage: (_config: AppConfig) =>
     '.gallview_contents > .inner img, .gallview_contents > .inner video{filter:blur(6px);-webkit-filter:blur(6px);}',
-  alignLeftContentWriter: () =>
+  alignLeftContentWriter: (_config: AppConfig) =>
     '.wrapGL td.gall_writer.ub-writer {text-align: left;}',
-};
+} satisfies Record<PreprocessConfigKey, (config: AppConfig) => string>;
 
-function dataUrlToFile(dataurl, filename) {
+const PREPROCESS_CONFIG_KEYS = Object.keys(PREPROCESS_CSS) as PreprocessConfigKey[];
+
+function dataUrlToFile(dataurl: string, filename: string) {
   const arr = dataurl.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
+  const mime = arr[0]?.match(/:(.*?);/)?.[1] ?? 'application/octet-stream';
   const bstr = atob(arr[1]);
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
@@ -72,7 +90,7 @@ function collectWritePageInfo() {
 }
 
 // 업로드된 이미지를 에디터에 첨부 (page world — 페이지의 Editor 객체 사용)
-function attachUploadedImage(mockdata) {
+function attachUploadedImage(mockdata: unknown) {
   const sidebar = window.Editor?.getSidebar?.();
   const execAttach = sidebar?.getAttacher?.('image', window)?.attachHandler;
   if (typeof execAttach !== 'function') return false;
@@ -81,7 +99,7 @@ function attachUploadedImage(mockdata) {
   return true;
 }
 
-async function autoInsertImage(details) {
+async function autoInsertImage(details: { tabId: number }) {
   const config = await getConfig();
   if (config.autoInsertImage === false) return;
 
@@ -102,7 +120,7 @@ async function autoInsertImage(details) {
   const pageInfo = injection?.result;
   if (!pageInfo?.rKey || !pageInfo?.gallId) return;
 
-  let uploaded;
+  let uploaded: UploadedImageData | undefined;
   try {
     const formData = new FormData();
     formData.append('r_key', pageInfo.rKey);
@@ -114,7 +132,8 @@ async function autoInsertImage(details) {
       body: formData,
       credentials: 'include',
     });
-    uploaded = (await res.json())?.files?.[0];
+    const uploadResponse = await res.json() as { files?: UploadedImageData[] };
+    uploaded = uploadResponse.files?.[0];
   } catch (e) {
     console.log('Image transfer failed.', e);
     return;
@@ -124,11 +143,12 @@ async function autoInsertImage(details) {
     return;
   }
 
-  let imageUrl = null;
+  let imageUrl: string | null = null;
   for (const key of Object.keys(uploaded)) {
-    if (key.includes('web') && key.includes('url')) imageUrl = uploaded[key];
+    const value = uploaded[key];
+    if (key.includes('web') && key.includes('url') && typeof value === 'string') imageUrl = value;
   }
-  if (imageUrl == null) imageUrl = uploaded.url;
+  if (imageUrl == null) imageUrl = uploaded.url ?? null;
   if (!imageUrl) {
     console.log('Image transfer failed: uploaded image URL is missing.');
     return;
@@ -222,9 +242,9 @@ export default defineBackground(() => {
       // 직계 자식 프레임(dcs_iframe)은 제외 — MV2 동작(parentFrameId !== 0) 유지
       if (details.parentFrameId === 0) return;
       const config = await getConfig();
-      const css = Object.entries(PREPROCESS_CSS)
-        .filter(([key]) => config[key])
-        .map(([, cssOf]) => cssOf(config))
+      const css = PREPROCESS_CONFIG_KEYS
+        .filter((key) => config[key])
+        .map((key) => PREPROCESS_CSS[key](config))
         .join('\n');
       if (!css) return;
       chrome.scripting

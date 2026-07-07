@@ -12,9 +12,19 @@ export function closeDialog() {
     if (activeDialog?.open) activeDialog.close();
 }
 
-export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
-    var dialog = document.querySelector<HTMLDialogElement>('#dcs_dialog');
+interface ArticleFetchController {
+    controller: AbortController | null;
+    signal: AbortSignal | null;
+}
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+export function insertCommentIframe(dialogTemplate: HTMLElement, url: string, timeout = 500) {
+    const dialog = document.querySelector<HTMLDialogElement>('#dcs_dialog');
     if(!url || !dialog || !dialogTemplate) return false;
+    const dialogElement = dialog;
     var innerStyle = '<style>html { overflow: hidden; } #container { margin-left : 1px !important; } .view_content_wrap { display : none !important; } .view_comment { width: 840px !important; } [id^=memo] { width : 630px !important; } .cmt_write_box.small [id^=memo] { width : 600px !important; } .view_bottom_btnbox { display : none !important; } .cmt_txtbox { width : 500px !important; } .usertxt.ub-word { width:inherit !important; } .ub-content[blackedUser~=qvz] { color:gray; background: #e4e4e4; } .ub-content[blackedUser~=qvz] td { color:gray; } .ub-content[blackedUser~=qvz] a { color:gray !important; } .pop_wrap.type3 { left : 19px !important; } div[id^=div-gpt] { display: none; } .wrap_inner { margin : 0 !important; } ::selection { background: #d7e8ff; color: #25282b; text-shadow: none; } red {color:#ff5442} blue {color:#4666ff} green {color:#00a500}</style>';
 
     const smallLoading = document.createElement('div');
@@ -57,9 +67,9 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
 
             iframe.style.height = iframeDocument.body.scrollHeight + 20 + 'px';
             iframe.style.width = iframeDocument.body.scrollWidth + 'px';
-            dialog.focus();
+            dialogElement.focus();
         } catch (e) {
-            console.warn(new Date()+'IFRAME ERR : '+e.message);
+            console.warn(new Date()+'IFRAME ERR : '+getErrorMessage(e));
             iframe.style.width = '555px';
             retryIframe();
             return;
@@ -85,11 +95,11 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
         });
         delegate(iframeDocument, 'click', '.repley_add, .repley_add_vote, .dccon_list_box .img_dccon', function (){
             app.sendToBackground('reply');
-            dialog.focus();
+            dialogElement.focus();
         });
 
         observeIframe(iframeDocument);
-        contentBlock.toComment(null, '');
+        contentBlock.toComment(undefined, '');
         contentMemo.toComment();
         smallLoading.style.opacity = '0';
 
@@ -103,7 +113,7 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
         }
     }
 
-    function hideSiblingsOfParents(element) {
+    function hideSiblingsOfParents(element: Element) {
         let parent = element.parentElement;
         while (parent && parent.parentElement) {
             Array.from(parent.parentElement.children).forEach((sibling) => {
@@ -113,13 +123,14 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
         }
     }
 
-    function observeIframe(selector) {
+    function observeIframe(selector: Document) {
         let mo = new MutationObserver(process);
         mo.observe(selector, {subtree: true, childList:true, attributeOldValue: true, attributes: true});
         var originHeight = selector.body.scrollHeight;
-        function process(mutations) {
+        function process(mutations: MutationRecord[]) {
             for(let i=0, j=mutations.length ; i < j ; i++){
-                if(mutations[i].addedNodes.length > 0 && mutations[i].target.classList[0] === 'comment_wrap') {
+                const target = mutations[i].target;
+                if(mutations[i].addedNodes.length > 0 && target instanceof Element && target.classList[0] === 'comment_wrap') {
                     contentBlock.toComment();
                     contentMemo.toComment();
                     break;
@@ -132,9 +143,10 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
                 console.error(e);
                 return 0;
             }
-            if(document.getElementById('dcs_iframe') != null && originHeight != iframe.contentWindow.document.body.scrollHeight) {
-                originHeight = iframe.contentWindow.document.body.scrollHeight+20;
-                iframe.style.height = iframe.contentWindow.document.body.scrollHeight+20 + 'px';
+            const iframeBody = iframe.contentWindow?.document.body;
+            if(document.getElementById('dcs_iframe') != null && iframeBody && originHeight != iframeBody.scrollHeight) {
+                originHeight = iframeBody.scrollHeight+20;
+                iframe.style.height = iframeBody.scrollHeight+20 + 'px';
             }
         }
     }
@@ -142,14 +154,14 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
     return dialogTemplate;
 }
 
-export let loadArticleViaDialog = function (url) {
+export let loadArticleViaDialog = function (url: string) {
     if (!url) return false;
     let dialog = openDialog(document.querySelector('.dialog-fixer'), undefined);
     if (!dialog) return false;
     else requestArticle(url, dialog);
 };
 
-let openDialog = function(position, callback) {
+let openDialog = function(position: Element | null, callback?: (error: unknown, body: HTMLElement) => void) {
     let beforeUrl = location.href;
     document.querySelector('body > #dcs_dialog')?.remove();
     const dialog = document.createElement('dialog');
@@ -163,8 +175,9 @@ let openDialog = function(position, callback) {
     positionDialog(dialog, position);
     dialog.style.background = postprocessing.dialogBackgroundColor;
     body.style.background = postprocessing.dialogBackgroundColor;
-    body.append(document.createElement('div'));
-    body.firstElementChild.className = 'spinner_wrap';
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner_wrap';
+    body.append(spinner);
 
     dialog.querySelector('.dcs-dialog-close')?.addEventListener('click', closeDialog);
     dialog.addEventListener('click', function (event) {
@@ -183,7 +196,7 @@ let openDialog = function(position, callback) {
 
     delegate(body, 'click', '.gall_comment', function () {
         var iframe = document.getElementById('dcs_iframe') as HTMLIFrameElement | null;
-        var focusCmt = iframe && iframe.contentWindow.document.querySelector('#focus_cmt');
+        var focusCmt = iframe?.contentWindow?.document.querySelector('#focus_cmt');
         if (focusCmt) focusCmt.scrollIntoView();
     });
 
@@ -191,7 +204,7 @@ let openDialog = function(position, callback) {
     return body;
 };
 
-function positionDialog(dialog, anchor) {
+function positionDialog(dialog: HTMLDialogElement, anchor: Element | null) {
     const rect = anchor?.getBoundingClientRect();
     const width = Math.min(880, window.innerWidth - 24);
     const left = rect ? Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)) : Math.max(12, (window.innerWidth - width) / 2);
@@ -201,23 +214,22 @@ function positionDialog(dialog, anchor) {
     dialog.style.top = top + 'px';
 }
 
-function clickedBackdrop(event, dialog) {
+function clickedBackdrop(event: MouseEvent, dialog: HTMLDialogElement) {
     if (event.target !== dialog) return false;
     const rect = dialog.getBoundingClientRect();
     return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
 }
 
-var ArticleController = function () {
-    this.controller = null;
-    this.signal = null;
+var ac: ArticleFetchController = {
+    controller: null,
+    signal: null,
 };
-
-var ac = new ArticleController();
 
 const ERR_404 = '404';
 const ERR_503 = '503';
 
-let requestArticle = async function (url, dialogTemplate = document.querySelector('#dcs_dialog_body')) {
+let requestArticle = async function (url: string, dialogTemplate: HTMLElement | null = document.querySelector<HTMLElement>('#dcs_dialog_body')) {
+    if (!dialogTemplate) return false;
 
     try {
         if(ac.controller) ac.controller.abort();
@@ -240,21 +252,22 @@ let requestArticle = async function (url, dialogTemplate = document.querySelecto
         postprocessing.blurImage();
 
     } catch (error) {
-        if(error.message === ERR_404) {
-            dialogTemplate.innerHTML = errorPage(error.message, '페이지를 불러오는데 실패하였습니다', '삭제된 글이거나 존재하지 않는 게시글 주소입니다');
+        const message = getErrorMessage(error);
+        if(message === ERR_404) {
+            dialogTemplate.innerHTML = errorPage(message, '페이지를 불러오는데 실패하였습니다', '삭제된 글이거나 존재하지 않는 게시글 주소입니다');
         }
-        else if (error.message === ERR_503) {
-            dialogTemplate.innerHTML = errorPage(error.message, '페이지를 불러오는데 실패하였습니다', '서버가 응답하지 않았습니다');
+        else if (message === ERR_503) {
+            dialogTemplate.innerHTML = errorPage(message, '페이지를 불러오는데 실패하였습니다', '서버가 응답하지 않았습니다');
         }
         else {
-            dialogTemplate.innerHTML = errorPage(error.message, '페이지를 불러오는데 실패하였습니다', '서버가 응답하지 않았습니다');
+            dialogTemplate.innerHTML = errorPage(message, '페이지를 불러오는데 실패하였습니다', '서버가 응답하지 않았습니다');
         }
         document.querySelector('#errorImage')?.addEventListener('click', () => {
             requestArticle(url, dialogTemplate);
         });
     }
 
-    function errorPage(errorMsg, header, context) {
+    function errorPage(errorMsg: string, header: string, context: string) {
         let errorTemplate = '<div id="errorPage">';
         errorTemplate += '<div id="errorImage"></div>';
         errorTemplate += '<br><br><br>';

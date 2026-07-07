@@ -10,16 +10,31 @@ import { postprocessing } from './postprocess';
 import { config, filter, setConfig } from './state';
 import { isCommandWriteMessage } from '../../lib/messages';
 
+type UiCallType = 'lists' | 'view';
+type PostprocessCallType = UiCallType | 'write';
+type SupportedCallType = PostprocessCallType | 'modify';
+
 setPageUiDependencies({ loadList });
 setListLoaderDependencies({ loadArticleViaDialog });
 
+function isSupportedCallType(calltype: string): calltype is SupportedCallType {
+    return ['view', 'lists', 'write', 'modify'].includes(calltype);
+}
+
+function isUiCallType(calltype: SupportedCallType): calltype is UiCallType {
+    return calltype === 'lists' || calltype === 'view';
+}
+
+function isPostprocessCallType(calltype: SupportedCallType): calltype is PostprocessCallType {
+    return calltype !== 'modify';
+}
+
 function main() {
-    let callTypeList = ['view', 'lists', 'write', 'modify'];
     const context = createPageContext();
     setPageContext(context);
     const calltype = context.calltype;
 
-    if(!callTypeList.includes(calltype)) return exitMain();
+    if(!isSupportedCallType(calltype)) return exitMain();
 
     const configReady = app.requestConfig().then(function (data) {
         setConfig(data);
@@ -42,8 +57,12 @@ function main() {
             return exitMain();
         }
 
-        if (typeof manipulateDOM.run[calltype] === 'function') manipulateDOM.run[calltype]();
-        if (typeof postprocessing.run[calltype] === 'function') postprocessing.run[calltype]();
+        if (isUiCallType(calltype)) {
+            manipulateDOM.run[calltype]?.();
+        }
+        if (isPostprocessCallType(calltype)) {
+            postprocessing.run[calltype]?.();
+        }
 
         if(calltype === 'lists' || calltype ==='view') loadList();
         return true;

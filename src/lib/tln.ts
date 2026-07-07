@@ -1,6 +1,11 @@
+type TlnEventBinding = {
+    evt: string;
+    hdlr: EventListener;
+};
+
 export const TLN = {
-    eventList: {},
-    update_line_numbers: function(ta, el) {
+    eventList: {} as Record<string, TlnEventBinding[]>,
+    update_line_numbers: function(ta: HTMLTextAreaElement, el: HTMLElement) {
         let lines = ta.value.split("\n").length;
         let child_count = el.children.length;
         let difference = lines - child_count;
@@ -16,13 +21,13 @@ export const TLN = {
             el.appendChild(frag);
         }
         while(difference < 0) {
-            el.removeChild(el.firstChild);
+            if (el.firstChild) el.removeChild(el.firstChild);
             difference++;
         }
     },
-    append_line_numbers: function(id) {
+    append_line_numbers: function(id: string) {
         let ta = document.getElementById(id);
-        if(ta == null) {
+        if(!(ta instanceof HTMLTextAreaElement)) {
             return console.warn("[tln.js] Couldn't find textarea of id '"+id+"'");
         }
         if(ta.className.indexOf("tln-active") != -1) {
@@ -32,7 +37,7 @@ export const TLN = {
         ta.removeAttribute("style");
 
         let el = document.createElement("div");
-        ta.parentNode.insertBefore(el, ta);
+        ta.parentNode?.insertBefore(el, ta);
         el.className = "tln-wrapper";
         TLN.update_line_numbers(ta, el);
         TLN.eventList[id] = [];
@@ -40,13 +45,13 @@ export const TLN = {
         const __change_evts = [
             "propertychange", "input", "keydown", "keyup"
         ];
-        const __change_hdlr = function(ta, el) {
-            return function(e) {
-                if((+ta.scrollLeft==10 && (e.keyCode==37||e.which==37
+        const __change_hdlr = function(ta: HTMLTextAreaElement, el: HTMLElement): EventListener {
+            return function(e: Event) {
+                if(e instanceof KeyboardEvent && ((+ta.scrollLeft==10 && (e.keyCode==37||e.which==37
                     ||e.code=="ArrowLeft"||e.key=="ArrowLeft"))
                 || e.keyCode==36||e.which==36||e.code=="Home"||e.key=="Home"
                 || e.keyCode==13||e.which==13||e.code=="Enter"||e.key=="Enter"
-                || e.code=="NumpadEnter")
+                || e.code=="NumpadEnter"))
                     ta.scrollLeft = 0;
                 TLN.update_line_numbers(ta, el);
             }
@@ -60,7 +65,7 @@ export const TLN = {
         }
 
         const __scroll_evts = [ "change", "mousewheel", "scroll" ];
-        const __scroll_hdlr = function(ta, el) {
+        const __scroll_hdlr = function(ta: HTMLTextAreaElement, el: HTMLElement): EventListener {
             return function() {  el.scrollTop = ta.scrollTop;  }
         }(ta, el);
         for(let i = __scroll_evts.length - 1; i >= 0; i--) {
@@ -71,9 +76,9 @@ export const TLN = {
             });
         }
     },
-    remove_line_numbers: function(id) {
+    remove_line_numbers: function(id: string) {
         let ta = document.getElementById(id);
-        if(ta == null) {
+        if(!(ta instanceof HTMLTextAreaElement)) {
             return console.warn("[tln.js] Couldn't find textarea of id '"+id+"'");
         }
         if(ta.className.indexOf("tln-active") == -1) {
@@ -81,7 +86,7 @@ export const TLN = {
         }
         ta.classList.remove("tln-active");
 
-        ta.previousSibling.remove();
+        ta.previousElementSibling?.remove();
 
         if(!TLN.eventList[id]) return;
         for(let i = TLN.eventList[id].length - 1; i >= 0; i--) {

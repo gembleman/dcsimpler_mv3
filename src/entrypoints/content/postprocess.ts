@@ -13,7 +13,7 @@ export const postprocessing = {
         qsa('img', target).forEach((image) => image.removeAttribute('onclick'));
         select.forEach((element) => {
             element.setAttribute('blur', 'y');
-            element.addEventListener('click', function (event) {
+            element.addEventListener('click', function (this: Element, event) {
                 this.setAttribute('blur', 'n');
                 event.preventDefault();
                 event.stopPropagation();

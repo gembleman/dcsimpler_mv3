@@ -10,6 +10,17 @@ interface PageUiDependencies {
     loadList: (requestURL?: string) => void | Promise<void>;
 }
 
+interface GalleryItem {
+    id: string;
+    name: string;
+    type: string;
+    link: string;
+}
+
+interface AutoRefreshElement extends HTMLElement {
+    intervalID?: ReturnType<typeof setInterval>;
+}
+
 type ProgressStatus = -2 | -1 | 0 | 1;
 type ProgressLabel = 'loading' | 'success' | 'fail' | 'error' | 'fatalError';
 type ManipulateMethodName =
@@ -25,6 +36,10 @@ type ManipulateMethodName =
 
 let pageUiDependencies: PageUiDependencies = { loadList: () => undefined };
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
 export function setPageUiDependencies(dependencies: Partial<PageUiDependencies>) {
     pageUiDependencies = { ...pageUiDependencies, ...dependencies };
 }
@@ -35,7 +50,7 @@ export const manipulateDOM = {
         if (!gallList || gallList.parentElement?.classList.contains('wrapGL')) return;
         const wrapper = document.createElement('div');
         wrapper.className = 'wrapGL';
-        gallList.parentNode.insertBefore(wrapper, gallList);
+        gallList.parentNode?.insertBefore(wrapper, gallList);
         wrapper.append(gallList);
     },
     arrayTab: () => {
@@ -55,7 +70,7 @@ export const manipulateDOM = {
             chrome.runtime.sendMessage(message);
         });
 
-        function arraytabListener (event) {
+        function arraytabListener (this: HTMLElement, event: Event) {
             const className = this.classList[0];
             qsa('.array_tab > button').forEach((button) => button.classList.remove('on'));
             qsa('.array_tab .'+className).forEach((button) => button.classList.add('on'));
@@ -67,7 +82,7 @@ export const manipulateDOM = {
             else if (classList.contains('btn_notice')) pageUiDependencies.loadList(pageContext.url.goNotice);
         }
 
-        function newBtnButton (isMoveTop) {
+        function newBtnButton (isMoveTop: string) {
             let p = '';
             let exceptionMode = pageContext.query['exception_mode'];
             let isE = !!exceptionMode;
@@ -120,9 +135,9 @@ export const manipulateDOM = {
                 document.querySelector('#io-rptg')?.setAttribute('t', 'hide');
             }
         });
-        document.querySelector('#io-autoRefresh')?.addEventListener('click', function () {
+        document.querySelector<AutoRefreshElement>('#io-autoRefresh')?.addEventListener('click', function (this: AutoRefreshElement) {
             let refreshRate = Number(window.prompt('자동 새로고침 주기를 설정해주세요 \n 초 단위, 0 이하의 숫자 입력 시 초기화됩니다', '0'));
-            clearInterval(this.intervalID);
+            if (this.intervalID) clearInterval(this.intervalID);
             if (!isNaN(refreshRate) && refreshRate > 0) {
                 this.classList.add('-running');
                 this.intervalID =  setInterval (function () {
@@ -138,33 +153,34 @@ export const manipulateDOM = {
         document.querySelector('#dcs_nav #io-progress')?.setAttribute('t', label);
     },
     visitHistory : function () {
-        let normalizeLink = function (href) {
+        let normalizeLink = function (href: string) {
             if (!href) return '';
             return String(href).replace(/^https?:\/\//, '').replace(/^\/\//, '');
         };
 
-        let createHref = function (link) {
+        let createHref = function (link: string) {
             if (!link) return '#';
             if (/^https?:\/\//.test(link) || link.startsWith('//')) return link;
             return '//'+link.replace(/^\/+/, '');
         };
 
-        let normalizeGalleryItems = function (items) {
-            let seen = new Set();
+        let normalizeGalleryItems = function (items: unknown): GalleryItem[] {
+            let seen = new Set<string>();
             if (!Array.isArray(items)) return [];
             return items.map(function (elem) {
-                let link = normalizeLink(elem?.link);
-                let name = (elem?.name ?? '').trim();
-                let id = elem?.id ?? '';
-                let type = elem?.type ?? '';
+                if (!isObjectRecord(elem)) return null;
+                let link = normalizeLink(String(elem.link ?? ''));
+                let name = String(elem.name ?? '').trim();
+                let id = String(elem.id ?? '');
+                let type = String(elem.type ?? '');
                 if (!link || !name || seen.has(link)) return null;
                 seen.add(link);
                 return { name, link, id, type };
-            }).filter(Boolean);
+            }).filter((elem): elem is GalleryItem => elem !== null);
         };
 
         let readStoredLatelyGallery = function () {
-            let stored;
+            let stored: unknown;
             try {
                 stored = JSON.parse(localStorage.lately_gallery);
             } catch (e) {
@@ -174,7 +190,7 @@ export const manipulateDOM = {
         };
 
         let readDomLatelyGallery = function () {
-            let items = qsa('#visit_history_lyr .under_listbox.vst_list li, #visit_history .newvisit_list.vst_listbox li');
+            let items = qsa<HTMLElement>('#visit_history_lyr .under_listbox.vst_list li, #visit_history .newvisit_list.vst_listbox li');
             return normalizeGalleryItems(items.map(function (item) {
                 let anchor = item.querySelector('a[href]');
                 let button = item.querySelector('.btn_visit_del');
@@ -191,7 +207,7 @@ export const manipulateDOM = {
             return normalizeGalleryItems(readStoredLatelyGallery().concat(readDomLatelyGallery()));
         };
 
-        let findDeleteButton = function (elem) {
+        let findDeleteButton = function (elem: GalleryItem) {
             if (!elem?.id) return null;
             return qsa<HTMLElement>('#visit_history .btn_visit_del, #visit_history_lyr .btn_visit_del').find(function (button) {
                 return button.getAttribute('data-id') === elem.id
@@ -199,7 +215,7 @@ export const manipulateDOM = {
             }) ?? null;
         };
 
-        let createGalleryElements = function (latelyGalleries) {
+        let createGalleryElements = function (latelyGalleries: GalleryItem[]) {
             let fragment = document.createDocumentFragment();
             if(!Array.isArray(latelyGalleries)) return fragment;
             latelyGalleries.forEach(function (elem, idx) {
@@ -220,7 +236,7 @@ export const manipulateDOM = {
             return fragment;
         };
 
-        let renderGalleryElements = function (container, latelyGalleries) {
+        let renderGalleryElements = function (container: Element | DocumentFragment, latelyGalleries: GalleryItem[]) {
             container.replaceChildren(createGalleryElements(latelyGalleries));
         };
 
@@ -254,10 +270,13 @@ export const manipulateDOM = {
             }, 5000);
         };
 
-        let visitHistoryClickListener = function (event) {
+        let visitHistoryClickListener = function (event: MouseEvent) {
             if (!(event.target instanceof HTMLElement) || event.target.id !== 'dcs_closebox') return false;
-            let index = event.target.parentElement.attributes.index.value;
+            const indexValue = event.target.parentElement?.getAttribute('index');
+            if (indexValue == null) return false;
+            let index = Number(indexValue);
             let removed = latelyGallery[index];
+            if (!removed) return false;
             latelyGallery.splice(index, 1);
             try {
                 localStorage.lately_gallery = JSON.stringify(latelyGallery.map(function (elem) {
@@ -270,7 +289,7 @@ export const manipulateDOM = {
         };
 
         if(config.addRightSideVisitHistory === false) return false;
-        let latelyGallery = [];
+        let latelyGallery: GalleryItem[] = [];
         if (!mountVisitHistory()) observeVisitHistoryMount();
     },
     outerButton: () => {
@@ -316,12 +335,13 @@ export const manipulateDOM = {
         const commentRoot = document.querySelector('.view_comment');
         if (!commentRoot) return;
         observed(commentRoot);
-        function observed(selector) {
+        function observed(selector: Element) {
             let mo = new MutationObserver(process);
             mo.observe(selector, {subtree: true, childList:true, attributeOldValue: true, attributes: true});
-            function process(mutations) {
+            function process(mutations: MutationRecord[]) {
                 for(let i=0, j=mutations.length ; i < j ; i++){
-                    if(mutations[i].addedNodes.length > 0 && mutations[i].target.classList[0] === 'comment_wrap') {
+                    const target = mutations[i].target;
+                    if(mutations[i].addedNodes.length > 0 && target instanceof Element && target.classList[0] === 'comment_wrap') {
                         contentBlock.toComment();
                         contentMemo.toComment();
                         break;

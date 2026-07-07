@@ -2,7 +2,7 @@ import { pageContext } from './context';
 import { isDialogTarget, isEditableTarget } from './dom';
 import { keyEnum, normalizeKey } from './state';
 
-function blocksGlobalHotkey(target) {
+function blocksGlobalHotkey(target: EventTarget | null) {
     return isEditableTarget(target) || isDialogTarget(target);
 }
 

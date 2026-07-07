@@ -90,12 +90,13 @@ export let loadList = async function (requestURL?: string) {
         contentBlock.toContent();
         contentMemo.toContent();
 
-        qsa('.left_content .ub-content .gall_tit a').forEach(function (anchor) {
+        qsa<HTMLAnchorElement>('.left_content .ub-content .gall_tit a').forEach(function (anchor) {
             anchor.setAttribute('onclick', 'return false;');
-            anchor.addEventListener('click', function (evt) {
+            anchor.addEventListener('click', function (this: HTMLAnchorElement, evt) {
                 this.blur();
                 const clickedIcon = evt.target instanceof Element && evt.target.classList[0] === 'icon_img';
                 const href = this.getAttribute('href');
+                if (!href) return;
                 if (clickedIcon || !pageContext.lists) window.location.href = href;
                 else config.directView === true ? listLoaderDependencies.loadArticleViaDialog(href) : window.location.href = href;
             });
