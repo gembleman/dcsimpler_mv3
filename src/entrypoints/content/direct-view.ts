@@ -6,7 +6,7 @@ import { manipulateDOM } from './page-ui';
 import { postprocessing } from './postprocess';
 import { keyEnum, normalizeKey } from './state';
 
-let activeDialog: any = null;
+let activeDialog: HTMLDialogElement | null = null;
 
 export function closeDialog() {
     if (activeDialog?.open) activeDialog.close();
@@ -41,16 +41,17 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
         return 0;
     }
     function onLoad() {
-        var iframeDocument;
+        var iframeDocument: Document;
         try{
             ctr++;
+            if (!iframe.contentWindow) throw new Error('iframe window is empty');
             iframeDocument = iframe.contentWindow.document;
             iframeDocument.querySelectorAll('.write_div').forEach((element) => element.remove());
             const comments = iframeDocument.querySelectorAll('.view_comment');
             if(!comments.length) iframe.style.display = 'none';
             comments.forEach(hideSiblingsOfParents);
             const styleFragment = iframeDocument.createRange().createContextualFragment(innerStyle);
-            const lastStylesheet: any = Array.from(iframeDocument.querySelectorAll("head link[rel='stylesheet']")).at(-1);
+            const lastStylesheet = Array.from(iframeDocument.querySelectorAll<HTMLLinkElement>("head link[rel='stylesheet']")).at(-1);
             if (lastStylesheet) lastStylesheet.after(styleFragment);
             else iframeDocument.head?.append(styleFragment);
 
@@ -105,8 +106,8 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
     function hideSiblingsOfParents(element) {
         let parent = element.parentElement;
         while (parent && parent.parentElement) {
-            Array.from(parent.parentElement.children).forEach((sibling: any) => {
-                if (sibling !== parent) sibling.style.display = 'none';
+            Array.from(parent.parentElement.children).forEach((sibling) => {
+                if (sibling !== parent && sibling instanceof HTMLElement) sibling.style.display = 'none';
             });
             parent = parent.parentElement;
         }
@@ -142,8 +143,9 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
 }
 
 export let loadArticleViaDialog = function (url) {
-    let dialog = openDialog(document.querySelector('.dialog-fixer'), undefined);
     if (!url) return false;
+    let dialog = openDialog(document.querySelector('.dialog-fixer'), undefined);
+    if (!dialog) return false;
     else requestArticle(url, dialog);
 };
 
@@ -154,7 +156,8 @@ let openDialog = function(position, callback) {
     dialog.id = 'dcs_dialog';
     dialog.innerHTML = '<button type="button" class="dcs-dialog-close" aria-label="close"></button><div id="dcs_dialog_body"></div>';
     document.body.prepend(dialog);
-    const body: any = dialog.querySelector('#dcs_dialog_body');
+    const body = dialog.querySelector<HTMLElement>('#dcs_dialog_body');
+    if (!body) return false;
     activeDialog = dialog;
 
     positionDialog(dialog, position);

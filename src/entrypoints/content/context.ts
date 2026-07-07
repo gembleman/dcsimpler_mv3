@@ -1,16 +1,29 @@
-export let pageContext: any;
+export type PageCallType = 'view' | 'lists' | 'write' | 'modify' | string;
 
-export function setPageContext(nextContext) {
+export interface PageContext {
+    [segment: string]: unknown;
+    pathname: string[];
+    calltype: PageCallType;
+    query: Record<string, string>;
+    url: {
+        regular: string;
+        goNormal: string;
+        goRecommend: string;
+        goNotice: string;
+    };
+}
+
+export let pageContext: PageContext;
+
+export function setPageContext(nextContext: PageContext) {
     pageContext = nextContext;
 }
 
-export function createPageContext(locationRef = location) {
-    let context: any = {};
-    context = parsePathname2(locationRef.pathname);
+export function createPageContext(locationRef: Location = location): PageContext {
+    let context = parsePathname2(locationRef.pathname);
     context.pathname = parsePathname(locationRef.pathname).reverse();
     context.calltype = context.pathname[0];
     context.query = parseQuery(locationRef.search);
-    context.url = {};
     const url = new URL(locationRef.href);
     url.searchParams.delete('page');
     url.searchParams.delete('exception_mode');
@@ -22,16 +35,26 @@ export function createPageContext(locationRef = location) {
     context.url.goNotice = context.url.regular + queryGlue + 'page=1&exception_mode=notice';
     return context;
 
-    function parsePathname2(str) {
-        return str.replace(/^\/+|\/+$/g, '').split('/').reduce((acc, cuv) => (acc[cuv] = true, acc), {});
+    function parsePathname2(str: string): PageContext {
+        return str.replace(/^\/+|\/+$/g, '').split('/').reduce((acc, cuv) => (acc[cuv] = true, acc), {
+            pathname: [],
+            calltype: '',
+            query: {},
+            url: {
+                regular: '',
+                goNormal: '',
+                goRecommend: '',
+                goNotice: '',
+            },
+        } as PageContext);
     }
 
-    function parsePathname(str) {
+    function parsePathname(str: string): string[] {
         return str.replace(/^\/+|\/+$/g, '').split('/');
     }
 
-    function parseQuery(str) {
-        let query = {};
+    function parseQuery(str: string): Record<string, string> {
+        let query: Record<string, string> = {};
         new URLSearchParams(str.replace(/^\?/, '')).forEach(function (value, key) {
             query[key] = value;
         });

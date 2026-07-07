@@ -36,17 +36,17 @@ function dataUrlToFile(dataurl, filename) {
 
 // 글쓰기 페이지에서 에디터 초기화 + r_key/갤러리 id 수집 (isolated world)
 function collectWritePageInfo() {
-  const editor: any = document.getElementById('tx_canvas_wysiwyg');
+  const editor = document.getElementById('tx_canvas_wysiwyg') as HTMLIFrameElement | null;
   if (editor) {
-    let doc: any = editor.contentWindow || editor.contentDocument;
-    if (doc.document) doc = doc.document;
+    let doc = editor.contentDocument ?? editor.contentWindow?.document;
+    if (!doc) return;
     doc.body.innerHTML = '';
   }
-  const status: any = document.getElementById('upload_status');
+  const status = document.getElementById('upload_status') as HTMLInputElement | null;
   if (status) status.value = 'Y';
   return {
-    rKey: document.getElementById('r_key')?.value,
-    gallId: document.getElementById('id')?.value,
+    rKey: (document.getElementById('r_key') as HTMLInputElement | null)?.value,
+    gallId: (document.getElementById('id') as HTMLInputElement | null)?.value,
   };
 }
 

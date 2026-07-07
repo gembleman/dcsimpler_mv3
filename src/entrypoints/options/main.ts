@@ -506,7 +506,7 @@ function bindOptionHandlers(charts) {
         }
 
         const reader = new FileReader();
-        const imageData: any = {};
+        const imageData: { filebyte?: string | ArrayBuffer | null; filetype?: string; filename?: string } = {};
         reader.onload = async function(event) {
             imageData.filebyte = event.target.result;
             imageData.filetype = file.type;

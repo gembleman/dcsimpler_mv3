@@ -5,13 +5,30 @@ import { contentBlock, contentMemo } from './filters';
 import { config } from './state';
 import { bindHotkeys } from './hotkeys';
 
-let pageUiDependencies: any = { loadList: null };
+interface PageUiDependencies {
+    loadList: (requestURL?: string) => void | Promise<void>;
+}
 
-export function setPageUiDependencies(dependencies) {
+type ProgressStatus = -2 | -1 | 0 | 1;
+type ProgressLabel = 'loading' | 'success' | 'fail' | 'error' | 'fatalError';
+type ManipulateMethodName =
+    | 'wrapLists'
+    | 'arrayTab'
+    | 'navigator'
+    | 'visitHistory'
+    | 'outerButton'
+    | 'imageRefreshBtn'
+    | 'hotkeybinding'
+    | 'globalListener'
+    | 'observeComment';
+
+let pageUiDependencies: PageUiDependencies = { loadList: () => undefined };
+
+export function setPageUiDependencies(dependencies: Partial<PageUiDependencies>) {
     pageUiDependencies = { ...pageUiDependencies, ...dependencies };
 }
 
-export let manipulateDOM: any = {
+export const manipulateDOM = {
     wrapLists: () => {
         const gallList = document.querySelector('.gall_list');
         if (!gallList || gallList.parentElement?.classList.contains('wrapGL')) return;
@@ -22,12 +39,12 @@ export let manipulateDOM: any = {
     },
     arrayTab: () => {
         qsa('.array_tab').forEach((tab) => {
-            Array.from(tab.children).filter((child: any) => child.tagName === 'BUTTON').forEach((button: any) => button.remove());
+            Array.from(tab.children).filter((child) => child.tagName === 'BUTTON').forEach((button) => button.remove());
             tab.insertAdjacentHTML('beforeend', newBtnButton(''));
             tab.insertAdjacentHTML('afterbegin', '<div class="dialog-fixer"> fixer </div>');
         });
         qsa('.list_bottom_btnbox .fl, .view_bottom_btnbox .fl').forEach((box) => {
-            Array.from(box.children).filter((child: any) => child.tagName === 'BUTTON').forEach((button: any) => button.remove());
+            Array.from(box.children).filter((child) => child.tagName === 'BUTTON').forEach((button) => button.remove());
             box.insertAdjacentHTML('beforeend', '<div class="array_tab left_box">'+newBtnButton('goTop')+'</div>');
         });
 
@@ -109,9 +126,9 @@ export let manipulateDOM: any = {
             }
         });
     },
-    setProgress: (status) => {
-        status = status === 0? 'loading' : status === 1? 'success' : status === -1? 'fail' : status === -2? 'error' : 'fatalError';
-        document.querySelector('#dcs_nav #io-progress')?.setAttribute('t', status);
+    setProgress: (status: ProgressStatus) => {
+        const label: ProgressLabel = status === 0? 'loading' : status === 1? 'success' : status === -1? 'fail' : status === -2? 'error' : 'fatalError';
+        document.querySelector('#dcs_nav #io-progress')?.setAttribute('t', label);
     },
     visitHistory : function () {
         let normalizeLink = function (href) {
@@ -285,7 +302,7 @@ export let manipulateDOM: any = {
     hotkeybinding: bindHotkeys,
     globalListener: () => {
         delegate(document, 'click', '.dcs_pagenationChild', function () {
-            pageUiDependencies.loadList(this.attributes.href.value);
+            pageUiDependencies.loadList(this.getAttribute('href') ?? undefined);
         });
     },
     observeComment: () => {
@@ -306,8 +323,8 @@ export let manipulateDOM: any = {
             }
         }
     },
-    set: (option) => {
-        let tag = Object.keys(option);
+    set: (option: Partial<Record<ManipulateMethodName, boolean>>) => {
+        let tag = Object.keys(option) as ManipulateMethodName[];
         for(let i=0, j=tag.length ; i<j ; i++) {
             option[tag[i]] ? manipulateDOM[tag[i]]() : null;
         }

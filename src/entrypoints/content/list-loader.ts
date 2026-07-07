@@ -5,41 +5,48 @@ import { contentBlock, contentMemo } from './filters';
 import { manipulateDOM } from './page-ui';
 import { config } from './state';
 
-let listLoaderDependencies: any = { loadArticleViaDialog: null };
+interface ListLoaderDependencies {
+    loadArticleViaDialog: (url: string) => void | boolean;
+}
 
-export function setListLoaderDependencies(dependencies) {
+let listLoaderDependencies: ListLoaderDependencies = { loadArticleViaDialog: () => false };
+
+export function setListLoaderDependencies(dependencies: Partial<ListLoaderDependencies>) {
     listLoaderDependencies = { ...listLoaderDependencies, ...dependencies };
 }
 
-function escapeRegExp(value) {
+function escapeRegExp(value: string): string {
     return value.replace(/[\^$.*+?()[]{}|]/g, '\$&');
 }
 
 function keywordHighlighting() {
-    let keywordElement: any = document.querySelector('input[type="hidden"][name="s_keyword"], input[name="s_keyword"]');
+    let keywordElement = document.querySelector<HTMLInputElement>('input[type="hidden"][name="s_keyword"], input[name="s_keyword"]');
     let keyword = keywordElement ? keywordElement.value : undefined;
     if (keyword && keyword != '' && keyword != 'null') {
         let keywordRegex = new RegExp(escapeRegExp(keyword));
         qsa('.gall_tit').forEach(function(gallTitle){
             let anchor = gallTitle.querySelector('a:first-child');
             if (!anchor) return;
-            let tmpSubject = anchor.cloneNode(true);
+            let tmpSubject = anchor.cloneNode(true) as HTMLElement;
             qsa('.icon_img', tmpSubject).forEach((icon) => icon.remove());
-            tmpSubject = tmpSubject.innerHTML;
-            if (tmpSubject.match(keywordRegex)) {
-                var subject = tmpSubject.replace(keyword, '<span class="mark">'+ keyword +'</span>');
-                anchor.innerHTML = anchor.innerHTML.replace(tmpSubject, subject);
+            const subjectText = tmpSubject.innerHTML;
+            if (subjectText.match(keywordRegex)) {
+                var subject = subjectText.replace(keyword, '<span class="mark">'+ keyword +'</span>');
+                anchor.innerHTML = anchor.innerHTML.replace(subjectText, subject);
             }
         });
     }
 }
 
-let listController = function () {
-    this.controller = null;
-    this.signal = null;
-};
+interface FetchController {
+    controller: AbortController | null;
+    signal: AbortSignal | null;
+}
 
-var lc = new listController();
+var lc: FetchController = {
+    controller: null,
+    signal: null,
+};
 
 export let loadList = async function (requestURL?: string) {
     manipulateDOM.setProgress(0);
@@ -58,9 +65,9 @@ export let loadList = async function (requestURL?: string) {
         history.replaceState({data: 'getLists'}, 'title', requestURL);
         let listDocument = parseHtml(await res.text());
 
-        var newList: any = listDocument.querySelector('.gall_list');
+        var newList = listDocument.querySelector('.gall_list');
         if (newList) {
-            newList = newList.cloneNode(true);
+            newList = newList.cloneNode(true) as Element;
             newList.classList.add('onload');
         }
         var newPagenation = listDocument.querySelectorAll('.bottom_paging_box')[1]?.innerHTML ?? '';

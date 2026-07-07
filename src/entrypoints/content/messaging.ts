@@ -1,9 +1,14 @@
 import { pageContext } from './context';
+import type { AppConfig } from '../../lib/default-config';
 
-export let app: any = {};
+export interface ContentApp {
+    requestConfig(): Promise<AppConfig>;
+    sendToBackground(msg: string): void;
+}
 
-app.requestConfig = function () {
-    return new Promise ( function (resolve, reject) {
+export const app: ContentApp = {
+    requestConfig() {
+    return new Promise<AppConfig>(function (resolve, reject) {
         chrome.runtime.sendMessage({flag: 'request'}, function(response) {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError);
@@ -13,10 +18,10 @@ app.requestConfig = function () {
             else reject(new Error('Config response is empty'));
         });
     })
-}
-
-app.sendToBackground = function (msg) {
-    chrome.runtime.sendMessage({flag: msg, id: pageContext.query.id, name: document.title}, function(response) {
+},
+    sendToBackground(msg: string) {
+    chrome.runtime.sendMessage({flag: msg, id: pageContext.query.id, name: document.title}, function() {
         if (chrome.runtime.lastError) return;
     });
-}
+},
+};
