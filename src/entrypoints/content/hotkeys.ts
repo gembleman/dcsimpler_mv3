@@ -17,14 +17,14 @@ function focusCommentEditor() {
 }
 
 function clickPreviousPage() {
-    var current = document.querySelector('.bottom_paging_box em');
-    var prev = current?.previousElementSibling as HTMLElement | null || document.querySelector<HTMLElement>('.bottom_paging_box a');
+    const current = document.querySelector('.bottom_paging_box em');
+    const prev = current?.previousElementSibling as HTMLElement | null || document.querySelector<HTMLElement>('.bottom_paging_box a');
     prev?.click();
 }
 
 function clickNextPage() {
-    var current = document.querySelector('.bottom_paging_box em');
-    var next = current?.nextElementSibling as HTMLElement | null || Array.from(document.querySelectorAll<HTMLElement>('.bottom_paging_box a')).at(-1);
+    const current = document.querySelector('.bottom_paging_box em');
+    const next = current?.nextElementSibling as HTMLElement | null || Array.from(document.querySelectorAll<HTMLElement>('.bottom_paging_box a')).at(-1);
     next?.click();
 }
 

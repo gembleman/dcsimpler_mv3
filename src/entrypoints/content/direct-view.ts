@@ -24,7 +24,7 @@ export let loadArticleViaDialog = function (url: string) {
     else requestArticle(url, dialog);
 };
 
-var ac: ArticleFetchController = {
+const ac: ArticleFetchController = {
     controller: null,
     signal: null,
 };
@@ -61,28 +61,33 @@ let requestArticle = async function (url: string, dialogTemplate: HTMLElement | 
 
     } catch (error) {
         const message = getErrorMessage(error);
-        if(message === ERR_404) {
-            dialogTemplate.innerHTML = errorPage(message, '페이지를 불러오는데 실패하였습니다', '삭제된 글이거나 존재하지 않는 게시글 주소입니다');
-        }
-        else if (message === ERR_503) {
-            dialogTemplate.innerHTML = errorPage(message, '페이지를 불러오는데 실패하였습니다', '서버가 응답하지 않았습니다');
-        }
-        else {
-            dialogTemplate.innerHTML = errorPage(message, '페이지를 불러오는데 실패하였습니다', '서버가 응답하지 않았습니다');
-        }
+        const context = message === ERR_404
+            ? '삭제된 글이거나 존재하지 않는 게시글 주소입니다'
+            : '서버가 응답하지 않았습니다';
+        dialogTemplate.replaceChildren(
+            createErrorPage(message, '페이지를 불러오는데 실패하였습니다', context),
+        );
         document.querySelector('#errorImage')?.addEventListener('click', () => {
             requestArticle(url, dialogTemplate);
         });
     }
-
-    function errorPage(errorMsg: string, header: string, context: string) {
-        let errorTemplate = '<div id="errorPage">';
-        errorTemplate += '<div id="errorImage"></div>';
-        errorTemplate += '<br><br><br>';
-        errorTemplate += '<h2>'+errorMsg+' : '+header+' </h2>';
-        errorTemplate += '<span> '+context+' </span>';
-        return errorTemplate;
-    }
 };
+
+function createErrorPage(errorMsg: string, header: string, context: string): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.id = 'errorPage';
+
+    const image = document.createElement('div');
+    image.id = 'errorImage';
+
+    const heading = document.createElement('h2');
+    heading.textContent = `${errorMsg} : ${header} `;
+
+    const description = document.createElement('span');
+    description.textContent = ` ${context} `;
+
+    wrapper.append(image, document.createElement('br'), document.createElement('br'), document.createElement('br'), heading, description);
+    return wrapper;
+}
 
 export { closeDialog };

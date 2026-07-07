@@ -59,9 +59,22 @@ export async function addUpdateNotification(version: string, innerText: string):
     if(!updateChk) return;
     const wrapper = document.createElement('div');
     wrapper.className = 'update-notification upn-container';
-    wrapper.innerHTML = '<div class="upn-title"><i class="fas fa-info-circle" style="margin-right: 10px"></i>v.'+version+'_updatelog</div>' +
-        '<div class="upn-close-button"><i class="fas fa-times" id="close"></i></div>' +
-        '<div class="upn-detail">'+innerText+'</div>';
+    const title = document.createElement('div');
+    title.className = 'upn-title';
+    const titleIcon = document.createElement('i');
+    titleIcon.className = 'fas fa-info-circle';
+    titleIcon.style.marginRight = '10px';
+    title.append(titleIcon, 'v.' + version + '_updatelog');
+    const closeButton = document.createElement('div');
+    closeButton.className = 'upn-close-button';
+    const closeIcon = document.createElement('i');
+    closeIcon.className = 'fas fa-times';
+    closeIcon.id = 'close';
+    closeButton.append(closeIcon);
+    const detail = document.createElement('div');
+    detail.className = 'upn-detail';
+    detail.textContent = innerText;
+    wrapper.append(title, closeButton, detail);
     document.body.append(wrapper);
 
     wrapper.addEventListener('click', async function (event) {
@@ -73,7 +86,42 @@ export async function addUpdateNotification(version: string, innerText: string):
 }
 
 export function addFootprint(version: string): void {
-    document.body.insertAdjacentHTML('beforeend', '<div id="footPrint">dcsimpler | '+version+'</div>');
+    const footprint = document.createElement('div');
+    footprint.id = 'footPrint';
+    footprint.textContent = 'dcsimpler | ' + version;
+    document.body.append(footprint);
+}
+
+export function addConfigFileControls(): void {
+    const container = qs('.menu-container[index="0"]');
+    if (!container || qs('.config-file-controls', container)) return;
+
+    const box = document.createElement('div');
+    box.className = 'box config-file-controls';
+
+    const title = document.createElement('div');
+    title.className = 'box-title';
+    const heading = document.createElement('h2');
+    heading.textContent = '설정 백업';
+    const description = document.createElement('p');
+    description.style.fontSize = '16px';
+    description.textContent = '전체 설정을 JSON 파일로 관리합니다';
+    title.append(heading, description);
+
+    const buttonWrapper = document.createElement('div');
+    buttonWrapper.className = 'button-wrapper';
+    const exportButton = document.createElement('button');
+    exportButton.className = 'saveText config-export color-blue';
+    exportButton.type = 'button';
+    exportButton.textContent = '내보내기';
+    const importButton = document.createElement('button');
+    importButton.className = 'saveText config-import color-blue';
+    importButton.type = 'button';
+    importButton.textContent = '가져오기';
+    buttonWrapper.append(exportButton, importButton);
+
+    box.append(title, buttonWrapper);
+    container.append(box);
 }
 
 export async function loadUpdatelog(): Promise<void> {

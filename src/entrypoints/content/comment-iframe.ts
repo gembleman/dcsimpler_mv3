@@ -3,6 +3,7 @@ import { contentBlock, contentMemo } from './filters';
 import { closeDialog } from './dialog';
 import { app } from './messaging';
 import { keyEnum, normalizeKey } from './state';
+import { observeCommentMutations } from './comment-observer';
 
 // Intentionally uses an iframe as a legacy adapter: the direct-view dialog fetches
 // article content itself, but keeps DCInside's original comment runtime for
@@ -69,9 +70,9 @@ function resizeIframeToContent(iframe: HTMLIFrameElement, iframeDocument: Docume
 
 function bindIframeHotkeys(iframeDocument: Document): void {
     iframeDocument.addEventListener('keydown', function(event){
-        var onTextarea = event.target instanceof Element && event.target.matches('input, textarea');
-        var withoutCtrlKey = !event.ctrlKey;
-        var key = normalizeKey(event);
+        const onTextarea = event.target instanceof Element && event.target.matches('input, textarea');
+        const withoutCtrlKey = !event.ctrlKey;
+        const key = normalizeKey(event);
 
         if(key === keyEnum.C && withoutCtrlKey && !onTextarea){
             document.querySelector<HTMLElement>('#avoiding_c')?.focus();
@@ -96,10 +97,10 @@ function bindIframeReplyTracking(iframeDocument: Document, dialogElement: HTMLDi
 }
 
 function maybeRefreshEmptyIframeComments(iframeDocument: Document): void {
-    var dialogCommentBadge = document.querySelector('.gall_comment');
-    var numberOfcommentsFromDialog = dialogCommentBadge ? dialogCommentBadge.innerHTML.replace(/[^0-9]/g, '') : COMMENT_COUNT_ZERO;
-    var commentCountElement = iframeDocument.querySelector<HTMLElement>('span[id^=comment]');
-    var numberOfcommentsFromiFrame = commentCountElement ? commentCountElement.innerText.replace(/[^0-9]/g, '') : COMMENT_COUNT_ZERO;
+    const dialogCommentBadge = document.querySelector('.gall_comment');
+    const numberOfcommentsFromDialog = dialogCommentBadge ? (dialogCommentBadge.textContent ?? '').replace(/[^0-9]/g, '') : COMMENT_COUNT_ZERO;
+    const commentCountElement = iframeDocument.querySelector<HTMLElement>('span[id^=comment]');
+    const numberOfcommentsFromiFrame = commentCountElement ? commentCountElement.innerText.replace(/[^0-9]/g, '') : COMMENT_COUNT_ZERO;
 
     if(numberOfcommentsFromDialog !== COMMENT_COUNT_ZERO && numberOfcommentsFromiFrame === COMMENT_COUNT_ZERO) {
         iframeDocument.querySelector<HTMLElement>('.btn_cmt_refresh')?.click();
@@ -107,18 +108,11 @@ function maybeRefreshEmptyIframeComments(iframeDocument: Document): void {
 }
 
 function observeIframe(iframe: HTMLIFrameElement, selector: Document): MutationObserver {
-    let mo = new MutationObserver(process);
-    mo.observe(selector, {subtree: true, childList:true, attributeOldValue: true, attributes: true});
-    var originHeight = selector.body.scrollHeight;
-    function process(mutations: MutationRecord[]) {
-        for(let i=0, j=mutations.length ; i < j ; i++){
-            const target = mutations[i].target;
-            if(mutations[i].addedNodes.length > 0 && target instanceof Element && target.classList[0] === 'comment_wrap') {
-                contentBlock.toComment();
-                contentMemo.toComment();
-                break;
-            }
-        }
+    let originHeight = selector.body.scrollHeight;
+    return observeCommentMutations(selector, function () {
+        contentBlock.toComment();
+        contentMemo.toComment();
+    }, function () {
         try {
             if (document.getElementById(COMMENT_IFRAME_ID) === null) return false;
         }
@@ -130,13 +124,13 @@ function observeIframe(iframe: HTMLIFrameElement, selector: Document): MutationO
         if(document.getElementById(COMMENT_IFRAME_ID) != null && iframeDocument && originHeight != iframeDocument.body.scrollHeight) {
             originHeight = resizeIframeToContent(iframe, iframeDocument);
         }
-    }
-    return mo;
+    });
 }
 
 export function insertCommentIframe(dialogTemplate: HTMLElement, url: string, retryDelay = RETRY_DELAY_MS) {
     const dialogElement = document.querySelector<HTMLDialogElement>('#dcs_dialog');
     if(!url || !dialogElement || !dialogTemplate) return false;
+    const dialog = dialogElement;
     const { smallLoading, iframe } = createCommentIframe(dialogTemplate);
     let retryTimer: number | undefined;
     let commentObserver: MutationObserver | undefined;
@@ -168,7 +162,7 @@ export function insertCommentIframe(dialogTemplate: HTMLElement, url: string, re
         let iframeDocument: Document;
         try{
             loadAttempts++;
-            iframeDocument = prepareIframeDocument(iframe, dialogElement);
+            iframeDocument = prepareIframeDocument(iframe, dialog);
         } catch (e) {
             console.warn(new Date()+'IFRAME ERR : '+getErrorMessage(e));
             iframe.style.width = FALLBACK_IFRAME_WIDTH;
@@ -177,7 +171,7 @@ export function insertCommentIframe(dialogTemplate: HTMLElement, url: string, re
         }
 
         bindIframeHotkeys(iframeDocument);
-        bindIframeReplyTracking(iframeDocument, dialogElement);
+        bindIframeReplyTracking(iframeDocument, dialog);
         commentObserver?.disconnect();
         commentObserver = observeIframe(iframe, iframeDocument);
         contentBlock.toComment(undefined, '');
@@ -186,7 +180,7 @@ export function insertCommentIframe(dialogTemplate: HTMLElement, url: string, re
         maybeRefreshEmptyIframeComments(iframeDocument);
     }
 
-    dialogElement.addEventListener('close', cleanup, { once: true });
+    dialog.addEventListener('close', cleanup, { once: true });
     loadIframe();
     return dialogTemplate;
 }

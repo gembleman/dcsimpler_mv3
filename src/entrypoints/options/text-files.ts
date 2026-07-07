@@ -33,8 +33,8 @@ export function exportFilename(textarea: HTMLTextAreaElement): string {
     return 'dcsimpler-' + suffix + '.txt';
 }
 
-export function downloadTextFile(filename: string, text: string): void {
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+export function downloadTextFile(filename: string, text: string, type = 'text/plain;charset=utf-8'): void {
+    const blob = new Blob([text], { type });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -45,10 +45,10 @@ export function downloadTextFile(filename: string, text: string): void {
     URL.revokeObjectURL(url);
 }
 
-export function importTextFile(onLoad: (text: string) => void): void {
+export function importTextFile(onLoad: (text: string) => void, accept = '.txt,text/plain'): void {
     const picker = document.createElement('input');
     picker.type = 'file';
-    picker.accept = '.txt,text/plain';
+    picker.accept = accept;
     picker.addEventListener('change', function () {
         const file = picker.files?.[0];
         if (!file) return;

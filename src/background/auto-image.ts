@@ -56,7 +56,7 @@ function collectWritePageInfo() {
   if (editor) {
     let doc = editor.contentDocument ?? editor.contentWindow?.document;
     if (!doc) return;
-    doc.body.innerHTML = '';
+    doc.body.replaceChildren();
   }
   const status = document.getElementById('upload_status') as HTMLInputElement | null;
   if (status) status.value = 'Y';
@@ -83,7 +83,9 @@ async function inspectWritePage(tabId: number): Promise<Required<WritePageInfo> 
       func: collectWritePageInfo,
     });
     const pageInfo = injection?.result;
-    return pageInfo?.rKey && pageInfo?.gallId ? pageInfo : null;
+    return pageInfo?.rKey && pageInfo?.gallId
+      ? { rKey: pageInfo.rKey, gallId: pageInfo.gallId }
+      : null;
   } catch (e) {
     console.log('Write page inspection failed.', e);
     return null;

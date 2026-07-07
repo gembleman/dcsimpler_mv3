@@ -16,14 +16,19 @@ export function openDialog(
     callback?: (error: unknown, body: HTMLElement) => void,
     options: OpenDialogOptions = {},
 ) {
-    let beforeUrl = location.href;
+    const beforeUrl = location.href;
     document.querySelector('body > #dcs_dialog')?.remove();
     const dialog = document.createElement('dialog');
     dialog.id = 'dcs_dialog';
-    dialog.innerHTML = '<button type="button" class="dcs-dialog-close" aria-label="close"></button><div id="dcs_dialog_body"></div>';
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'dcs-dialog-close';
+    closeButton.setAttribute('aria-label', 'close');
+    const dialogBody = document.createElement('div');
+    dialogBody.id = 'dcs_dialog_body';
+    dialog.replaceChildren(closeButton, dialogBody);
     document.body.prepend(dialog);
-    const body = dialog.querySelector<HTMLElement>('#dcs_dialog_body');
-    if (!body) return false;
+    const body = dialogBody;
     activeDialog = dialog;
 
     positionDialog(dialog, position);
@@ -33,7 +38,7 @@ export function openDialog(
     spinner.className = 'spinner_wrap';
     body.append(spinner);
 
-    dialog.querySelector('.dcs-dialog-close')?.addEventListener('click', closeDialog);
+    closeButton.addEventListener('click', closeDialog);
     dialog.addEventListener('click', function (event) {
         if (clickedBackdrop(event, dialog)) closeDialog();
     });
@@ -49,8 +54,8 @@ export function openDialog(
     dialog.focus();
 
     delegate(body, 'click', '.gall_comment', function () {
-        var iframe = document.getElementById('dcs_iframe') as HTMLIFrameElement | null;
-        var focusCmt = iframe?.contentWindow?.document.querySelector('#focus_cmt');
+        const iframe = document.getElementById('dcs_iframe') as HTMLIFrameElement | null;
+        const focusCmt = iframe?.contentWindow?.document.querySelector('#focus_cmt');
         if (focusCmt) focusCmt.scrollIntoView();
     });
 

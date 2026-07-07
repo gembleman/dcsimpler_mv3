@@ -11,6 +11,7 @@ import { bindOptionHandlers } from './handlers';
 import { isAutoInsertImageData } from './image-data';
 import {
     addFootprint,
+    addConfigFileControls,
     addUpdateNotification,
     initBlacklist,
     initBootStrapButton,
@@ -40,12 +41,15 @@ async function initOptions(): Promise<void> {
     }
 
     setText('#footer', 'dcsimpler_v.'+version);
-    qs('.menu-container[index="5"] p')?.insertAdjacentHTML('afterbegin', '<p>ver.'+version+'</p>');
+    const versionInfo = document.createElement('p');
+    versionInfo.textContent = 'ver.' + version;
+    qs('.menu-container[index="5"] p')?.prepend(versionInfo);
     await addUpdateNotification(version, updateDescription);
     initUsermemo(config);
     initBlacklist(config);
     initBootStrapButton(config);
     addFootprint(version);
+    addConfigFileControls();
     loadUpdatelog();
 
     const charts = createOptionsCharts(history);

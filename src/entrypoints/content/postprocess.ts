@@ -7,9 +7,9 @@ export const postprocessing = {
     dialogBackgroundColor: 'white',
     blurImage() {
         if(config.blurImage === false) return;
-        var target = document.querySelector('.gallview_contents > .inner');
+        const target = document.querySelector('.gallview_contents > .inner');
         if (!target) return;
-        var select = qsa('img, video', target);
+        const select = qsa('img, video', target);
         qsa('img', target).forEach((image) => image.removeAttribute('onclick'));
         select.forEach((element) => {
             element.setAttribute('blur', 'y');
@@ -23,7 +23,7 @@ export const postprocessing = {
     forceReloadImage() {
         if(config.autoRefreshImage === false) return;
         qsa('.writing_view_box img[src^=http][onclick^="javascript"]').forEach(function (item, index) {
-            var replace = document.querySelectorAll('.appending_file > *')[index]?.querySelector('[href]')?.getAttribute('href');
+            const replace = document.querySelectorAll('.appending_file > *')[index]?.querySelector('[href]')?.getAttribute('href');
             if (replace) item.setAttribute('src', replace);
         });
     },

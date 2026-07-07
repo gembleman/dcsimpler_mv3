@@ -46,8 +46,9 @@ function main() {
 
     const onReady = async function() {
         if(!document.body) return exitMain();
-        if(document.body.innerHTML.length === 0 || document.querySelector('.noaccess_wrap') !== null) return exitMain();
-        if(document.body.innerHTML === '정상적인 접근이 아닙니다') {
+        const bodyText = document.body.textContent?.trim() ?? '';
+        if(bodyText.length === 0 || document.querySelector('.noaccess_wrap') !== null) return exitMain();
+        if(bodyText === '정상적인 접근이 아닙니다') {
             window.location.reload();
             return exitMain();
         }

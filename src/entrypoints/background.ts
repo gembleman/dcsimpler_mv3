@@ -84,9 +84,10 @@ export default defineBackground(() => {
   });
 
   // Alt+S — 글 등록. MV3는 코드 문자열 주입이 불가하므로 content script에 위임
-  chrome.commands.onCommand.addListener((command) => {
+  chrome.commands.onCommand.addListener(async (command) => {
     if (command !== 'write') return;
-    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const tab = tabs[0];
       if (!tab?.id || !tab.url) return;
       const cond = tab.url.match(
@@ -94,9 +95,13 @@ export default defineBackground(() => {
       );
       if (cond) {
         const message: ContentRequestMessage = { flag: 'command:write' };
-        chrome.tabs.sendMessage(tab.id, message);
+        await chrome.tabs.sendMessage(tab.id, message).catch(() => {
+          /* content script가 없는 탭이면 무시 */
+        });
       }
-    });
+    } catch (e) {
+      console.log('Command handling failed.', e);
+    }
   });
 
   // 프리프로세싱 CSS 주입 (구 webNavigation.onCommitted + tabs.insertCSS)

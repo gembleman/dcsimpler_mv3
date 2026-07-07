@@ -1,7 +1,9 @@
 import type { AppConfig } from '@/lib/default-config';
 import { clearHistory } from '@/lib/stats';
+import { normalizeConfig } from '@/lib/storage';
+import { isObjectRecord } from '@/lib/type-guards';
 import { delegate, qs, qsa } from '@/lib/dom';
-import { isBlacklistFilterKey, isBooleanConfigKey } from './config-keys';
+import { blacklistKeys, booleanConfigKeys, isBlacklistFilterKey, isBooleanConfigKey } from './config-keys';
 import {
     flashErr,
     flashOk,
@@ -10,10 +12,12 @@ import {
     getPreviousInput,
     setDisplay,
     setInputValue,
+    setTextareaValue,
     setText,
     showElementError,
+    trigger,
 } from './dom-effects';
-import { exportFilename, downloadTextFile, findSectionTextarea, importIntoTextarea } from './text-files';
+import { exportFilename, downloadTextFile, findSectionTextarea, importIntoTextarea, importTextFile } from './text-files';
 import { getImageDataFromReader } from './image-data';
 import { recreateCharts } from './charts';
 import type { OptionsCharts } from './types';
@@ -23,6 +27,90 @@ type BindOptionHandlersOptions = {
     charts: OptionsCharts;
     saveCurrentConfig: () => Promise<void>;
 };
+
+const stringConfigKeys = ['minimizeLayout_filter', 'userMemo_filter'] as const satisfies readonly (keyof AppConfig)[];
+
+function formatFilterText(value: string): string {
+    return value === 'a^' ? '' : value.replace(/\|/g, '\r\n');
+}
+
+function syncTextareaValue(selector: string, value: string): void {
+    setTextareaValue(selector, value);
+    trigger(qs(selector), 'input');
+}
+
+function bindShiftEnterSave(
+    textareaSelector: string,
+    getSaveButton: (textarea: HTMLTextAreaElement) => HTMLElement | null | undefined,
+): void {
+    delegate<HTMLTextAreaElement, KeyboardEvent>(document, 'keydown', textareaSelector, function(event){
+        if(event.key !== 'Enter' || !event.shiftKey) return;
+        getSaveButton(this)?.click();
+        event.preventDefault();
+        event.stopPropagation();
+    });
+}
+
+function normalizeBlacklistTextareaValue(textarea: HTMLTextAreaElement): string {
+    let value = textarea.value.replace(/[\n\r]+/g, '|');
+    if(value[value.length-1] === '|') value = value.slice(0,value.length-1);
+    return value.length === 0 ? 'a^' : value;
+}
+
+function getTextSaveTargets(boxSelector: string, textarea: HTMLTextAreaElement) {
+    return [qs(boxSelector), textarea];
+}
+
+function validateBlacklistValue(value: string, targets: Array<Element | null>): boolean {
+    if (value === 'a^') return true;
+    try {
+        new RegExp(value);
+        showElementError(targets);
+        flashOk(targets);
+        return true;
+    }
+    catch (e) {
+        flashErr(targets);
+        return false;
+    }
+}
+
+function copyConfig(target: AppConfig, source: AppConfig): void {
+    for (const key of booleanConfigKeys) target[key] = source[key];
+    for (const key of stringConfigKeys) target[key] = source[key];
+    for (const key of blacklistKeys) target.blacklist_filter[key] = source.blacklist_filter[key];
+}
+
+function syncConfigControls(config: AppConfig): void {
+    qsa<HTMLInputElement>('.toggler').forEach(function (input) {
+        const key = input.getAttribute('t');
+        if (!isBooleanConfigKey(key)) return;
+        input.checked = config[key];
+
+        if(input.getAttribute('haveChildren') != null) {
+            const childBox = input.closest('.box')?.nextElementSibling;
+            if (childBox instanceof HTMLElement) childBox.style.display = input.checked ? '' : 'none';
+        }
+    });
+
+    setInputValue('.editText#input-layout-minimize', config.minimizeLayout_filter);
+    syncTextareaValue('.editText.userMemo', config.userMemo_filter);
+    for (const key of blacklistKeys) {
+        syncTextareaValue('.editText.blacklist.' + key, formatFilterText(config.blacklist_filter[key]));
+    }
+}
+
+function parseImportedConfig(text: string): AppConfig | null {
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(text);
+    } catch {
+        return null;
+    }
+
+    if (!isObjectRecord(parsed) || Array.isArray(parsed)) return null;
+    return normalizeConfig(parsed);
+}
 
 function bindMenuHandlers(): void {
     delegate(document, 'click', '.item', function () {
@@ -70,37 +158,17 @@ function bindBlacklistHandlers(config: AppConfig, saveCurrentConfig: () => Promi
         if (!isBlacklistFilterKey(d)) return;
         const textarea = qs('textarea.blacklist.'+d);
         if (!(textarea instanceof HTMLTextAreaElement)) return;
-        let value = textarea.value;
-        const element = [qs('.box.child.blacklist'), textarea];
-        value = value.replace(/[\n\r]+/g, '|');
-        if(value[value.length-1] === '|') value = value.slice(0,value.length-1);
-
-        if( value.length === 0 ) {
-            config.blacklist_filter[d] = 'a^';
-            await saveCurrentConfig();
-            flashOk(element);
-            return;
-        }
-        try {
-            new RegExp(value);
-            showElementError(element);
-            flashOk(element);
-        }
-        catch (e) {
-            flashErr(element);
-            return;
-        }
+        const value = normalizeBlacklistTextareaValue(textarea);
+        const targets = getTextSaveTargets('.box.child.blacklist', textarea);
+        if (!validateBlacklistValue(value, targets)) return;
 
         config.blacklist_filter[d] = value;
         await saveCurrentConfig();
+        if (value === 'a^') flashOk(targets);
     });
 
-    delegate<HTMLTextAreaElement, KeyboardEvent>(document, 'keydown', 'textarea.blacklist', function(event){
-        if(event.key === 'Enter' && event.shiftKey){
-            qs('.saveText.'+this.classList[1]+'.'+this.classList[2])?.click();
-            event.preventDefault();
-            event.stopPropagation();
-        }
+    bindShiftEnterSave('textarea.blacklist', function (textarea) {
+        return qs('.saveText.'+textarea.classList[1]+'.'+textarea.classList[2]);
     });
 }
 
@@ -108,19 +176,15 @@ function bindUserMemoHandlers(config: AppConfig, saveCurrentConfig: () => Promis
     delegate<HTMLElement>(document, 'click', '.saveText.userMemo.save', async function () {
         const textArea = qs<HTMLTextAreaElement>('.editText.userMemo');
         if (!textArea) return;
-        const targets = [qs('.box.child.userMemo'), textArea];
+        const targets = getTextSaveTargets('.box.child.userMemo', textArea);
         showElementError(targets);
         flashOk(targets);
         config.userMemo_filter = textArea.value;
         await saveCurrentConfig();
     });
 
-    delegate<HTMLTextAreaElement, KeyboardEvent>(document, 'keydown', 'textarea.userMemo', function(event){
-        if(event.key === 'Enter' && event.shiftKey){
-            qs('.saveText.userMemo.save')?.click();
-            event.preventDefault();
-            event.stopPropagation();
-        }
+    bindShiftEnterSave('textarea.userMemo', function () {
+        return qs('.saveText.userMemo.save');
     });
 }
 
@@ -135,6 +199,28 @@ function bindTextFileHandlers(): void {
         const textarea = findSectionTextarea(this);
         if (!textarea) return;
         importIntoTextarea(textarea);
+    });
+}
+
+function bindConfigFileHandlers(config: AppConfig, saveCurrentConfig: () => Promise<void>): void {
+    delegate<HTMLButtonElement>(document, 'click', '.saveText.config-export', function () {
+        downloadTextFile('dcsimpler-config.json', JSON.stringify(normalizeConfig(config), null, 2), 'application/json;charset=utf-8');
+    });
+
+    delegate<HTMLButtonElement>(document, 'click', '.saveText.config-import', function () {
+        const button = this;
+        importTextFile(async function (text) {
+            const importedConfig = parseImportedConfig(text);
+            if (!importedConfig) {
+                alert('설정 JSON 파일을 읽지 못했습니다.');
+                return;
+            }
+
+            copyConfig(config, importedConfig);
+            syncConfigControls(config);
+            await saveCurrentConfig();
+            flashOk(button);
+        }, '.json,application/json');
     });
 }
 
@@ -219,6 +305,7 @@ export function bindOptionHandlers(options: BindOptionHandlersOptions): void {
     bindBlacklistHandlers(options.config, options.saveCurrentConfig);
     bindUserMemoHandlers(options.config, options.saveCurrentConfig);
     bindTextFileHandlers();
+    bindConfigFileHandlers(options.config, options.saveCurrentConfig);
     bindConfigToggleHandlers(options.config, options.saveCurrentConfig);
     bindImageUploadHandlers();
     bindStatsHandlers(options.charts);

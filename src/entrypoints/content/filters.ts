@@ -1,15 +1,99 @@
 import type { AppConfig, BlacklistFilterKey } from '../../lib/default-config';
 import { pageContext } from './context';
 import { qsa, setElementVisibility } from './dom';
-import { config, filter } from './state';
+import { config, filter, type CompiledBlacklistFilter, type UserMemoFilter } from './state';
 
 type UserMemoInput = {
     ip: string[];
     tag: string[];
 };
 
-function blacklistRegExp(key: BlacklistFilterKey): RegExp {
-    return filter.blacklist[key] ?? /a^/;
+type WriterInfo = {
+    ip: string | null;
+    id: string | null;
+    nickname: string | null;
+    text: string | undefined;
+};
+
+type BlockReason = BlacklistFilterKey | 'notice';
+
+type ContentNoticeInfo = {
+    enabled: boolean;
+    isOperator: boolean;
+    isNoticeNumber: boolean;
+    isNoticeSubject: boolean;
+};
+
+export function blacklistRegExp(key: BlacklistFilterKey, blacklist: Partial<CompiledBlacklistFilter> = filter.blacklist): RegExp {
+    return blacklist[key] ?? /a^/;
+}
+
+export function extractWriterInfo(writer: Element, word?: HTMLElement | null): WriterInfo {
+    return {
+        ip: writer.getAttribute('data-ip'),
+        id: writer.getAttribute('data-uid'),
+        nickname: writer.getAttribute('data-nick'),
+        text: word ? word.innerText : undefined,
+    };
+}
+
+function valueMatchesBlacklist(value: string | null | undefined, key: BlacklistFilterKey, blacklist: Partial<CompiledBlacklistFilter>): boolean {
+    return value !== undefined && value !== null && value.match(blacklistRegExp(key, blacklist)) !== null;
+}
+
+export function findBlockReason(
+    writer: WriterInfo,
+    blacklist: Partial<CompiledBlacklistFilter> = filter.blacklist,
+    noticeInfo?: ContentNoticeInfo,
+): BlockReason | undefined {
+    if (noticeInfo?.enabled && (noticeInfo.isOperator || noticeInfo.isNoticeNumber || noticeInfo.isNoticeSubject)) return 'notice';
+    if (valueMatchesBlacklist(writer.ip, 'ip', blacklist)) return 'ip';
+    if (valueMatchesBlacklist(writer.id, 'id', blacklist)) return 'id';
+    if (valueMatchesBlacklist(writer.nickname, 'nickname', blacklist)) return 'nickname';
+    if (valueMatchesBlacklist(writer.text, 'keyword', blacklist)) return 'keyword';
+    if (!noticeInfo && writer.nickname === '댓글돌이') return 'notice';
+    return undefined;
+}
+
+function getContentNoticeInfo(article: HTMLElement, word: HTMLElement): ContentNoticeInfo {
+    const gallNum = article.querySelector('.gall_num');
+    const gallSubject = article.querySelector('.gall_subject');
+    const isCurrentArticle = !gallNum || gallNum.querySelector('.sp_img.crt_icon') === null;
+    return {
+        enabled: config.blacklist_notice === true,
+        isOperator: word.getAttribute('user_name') === '운영자',
+        isNoticeNumber: !!gallNum && (gallNum.textContent ?? '').trim().match(/^[^0-9]{1,}$/) !== null && isCurrentArticle,
+        isNoticeSubject: !!gallSubject && (gallSubject.textContent ?? '').match(/공지|뉴스|설문|AD/) !== null,
+    };
+}
+
+function applyBlock(element: HTMLElement, reason: BlockReason, effect?: string) {
+    element.setAttribute('blackedUser', 'qvz');
+    element.setAttribute('contentBlockReason', reason);
+    contentBlock.toggleContentDisplay(element, effect);
+}
+
+function findMemoTag(ip: string | null, usermemo: UserMemoFilter): string | undefined {
+    if (!ip) return undefined;
+    const match = usermemo.ip.indexOf(ip);
+    return match === -1 ? undefined : usermemo.tag[match];
+}
+
+export function applyMemoTag(writer: Element, ip: string, tag: string): void {
+    writer.setAttribute('title', ip);
+    const ipElement = writer.querySelector('.ip');
+    if (ipElement) ipElement.textContent = '('+tag+')';
+}
+
+function getCommentRoot(): ParentNode | null {
+    const iframe = document.querySelector<HTMLIFrameElement>('#dcs_iframe');
+    if (pageContext.calltype === 'lists' && !iframe) return null;
+    return pageContext.calltype === 'lists' ? iframe?.contentWindow?.document.body ?? null : document.body;
+}
+
+function getCommentMemoRoot(): Document {
+    const iframe = document.querySelector<HTMLIFrameElement>('#dcs_iframe');
+    return pageContext.calltype == 'lists' && iframe?.contentWindow ? iframe.contentWindow.document : document;
 }
 
 export let contentBlock = {
@@ -19,71 +103,25 @@ export let contentBlock = {
         return o;
     },
     toContent : function (effect?: string) {
-        let that = this;
         if(config.blacklist === false) return false;
         const tbody = document.querySelector('tbody');
         if (!tbody) return false;
-        [ ...tbody.querySelectorAll<HTMLElement>('.ub-content') ].map(function (article) {
-            let [ ubWriter, ubWord ]  = [ article.querySelector('.ub-writer'), article.querySelector<HTMLElement>('.ub-word') ];
+        tbody.querySelectorAll<HTMLElement>('.ub-content').forEach(function (article) {
+            const [ ubWriter, ubWord ]  = [ article.querySelector('.ub-writer'), article.querySelector<HTMLElement>('.ub-word') ];
             if (!ubWriter || !ubWord) return false;
-            let contentBlockReason = undefined;
-            let writerIP, writerID, writerNickName, contentText;
-            let gallNum, gallSubject;
-
-            writerID = ubWriter.getAttribute('data-uid');
-            writerIP = ubWriter.getAttribute('data-ip');
-            writerNickName = ubWriter.getAttribute('data-nick');
-            contentText = ubWord !== null ? ubWord.innerText : undefined;
-            gallNum = article.querySelector('.gall_num');
-            gallSubject = article.querySelector('.gall_subject');
-
-            let isCurrentArticle = !gallNum || gallNum.innerHTML.indexOf('class="sp_img crt_icon"') === -1;
-            let noticeBlock = config.blacklist_notice === true;
-
-            if (noticeBlock && ubWord.getAttribute('user_name') === '운영자') contentBlockReason = 'notice';
-            else if (noticeBlock && gallNum && gallNum.innerHTML.match(/^[^0-9]{1,}$/) && isCurrentArticle) contentBlockReason = 'notice';
-            else if (noticeBlock && gallSubject && gallSubject.textContent.match(/공지|뉴스|설문|AD/)) contentBlockReason = 'notice';
-            else if (writerIP && writerIP.match(blacklistRegExp('ip'))) contentBlockReason = 'ip';
-            else if (writerID && writerID.match(blacklistRegExp('id'))) contentBlockReason = 'id';
-            else if (writerNickName && writerNickName.match(blacklistRegExp('nickname'))) contentBlockReason = 'nickname';
-            else if (contentText !== undefined && contentText.match(blacklistRegExp('keyword'))) contentBlockReason ='keyword';
-
-            if (contentBlockReason) {
-                article.setAttribute('blackedUser', 'qvz');
-                article.setAttribute('contentBlockReason', contentBlockReason);
-                that.toggleContentDisplay(article, effect);
-            }
+            const contentBlockReason = findBlockReason(extractWriterInfo(ubWriter, ubWord), filter.blacklist, getContentNoticeInfo(article, ubWord));
+            if (contentBlockReason) applyBlock(article, contentBlockReason, effect);
         });
     },
     toComment : function (effect?: string, _legacy?: unknown) {
-        let that = this;
         if (config.blacklist === false) return false;
-        const iframe = document.querySelector<HTMLIFrameElement>('#dcs_iframe');
-        if (pageContext.calltype === 'lists' && !iframe) return false;
-        let reference = pageContext.calltype === 'lists' ? iframe?.contentWindow?.document.body : document.body;
+        const reference = getCommentRoot();
         if (!reference) return false;
-        [ ...reference.querySelectorAll<HTMLElement>('.view_comment li[class^=ub-content]') ].map(function (comment) {
-            let [ ubWriter, ubWord ] = [ comment.querySelector('.ub-writer'), comment.querySelector<HTMLElement>('.ub-word') ];
+        reference.querySelectorAll<HTMLElement>('.view_comment li[class^=ub-content]').forEach(function (comment) {
+            const [ ubWriter, ubWord ] = [ comment.querySelector('.ub-writer'), comment.querySelector<HTMLElement>('.ub-word') ];
             if (!ubWriter || !ubWord) return false;
-            let contentBlockReason = undefined;
-            let writerIP, writerID, writerNickName, commentText;
-
-            writerIP = ubWriter.getAttribute('data-ip');
-            writerID = ubWriter.getAttribute('data-uid');
-            writerNickName = ubWriter.getAttribute('data-nick');
-            commentText = ubWord !== null ? ubWord.innerText : undefined;
-
-            if (writerIP && writerIP.match(blacklistRegExp('ip'))) contentBlockReason = 'ip';
-            else if (writerID && writerID.match(blacklistRegExp('id'))) contentBlockReason = 'id';
-            else if (writerNickName && writerNickName.match(blacklistRegExp('nickname'))) contentBlockReason = 'nickname';
-            else if (commentText !== undefined && commentText.match(blacklistRegExp('keyword'))) contentBlockReason ='keyword';
-            else if (writerNickName === '댓글돌이') contentBlockReason = 'notice';
-
-            if (contentBlockReason) {
-                comment.setAttribute('blackedUser', 'qvz');
-                comment.setAttribute('contentBlockReason', contentBlockReason);
-                that.toggleContentDisplay(comment, effect);
-            }
+            const contentBlockReason = findBlockReason(extractWriterInfo(ubWriter, ubWord), filter.blacklist);
+            if (contentBlockReason) applyBlock(comment, contentBlockReason, effect);
         });
     },
     toggleContentDisplay : function (element: HTMLElement, effect?: string) {
@@ -106,32 +144,22 @@ export let contentMemo = {
     toContent : function () {
         if(config.userMemo === false) return;
         qsa('tbody .ub-content').forEach(function (article) {
-            var writer = article.querySelector('.ub-writer');
+            const writer = article.querySelector('.ub-writer');
             if (!writer) return;
-            var ip = writer.getAttribute('data-ip');
-            if (!ip) return;
-            var match = filter.usermemo.ip.indexOf(ip);
-            if(match === -1) return;
-            writer.setAttribute('title', ip);
-            const ipElement = writer.querySelector('.ip');
-            if (ipElement) ipElement.innerHTML = '('+filter.usermemo.tag[match]+')';
+            const ip = writer.getAttribute('data-ip');
+            const tag = findMemoTag(ip, filter.usermemo);
+            if (ip && tag) applyMemoTag(writer, ip, tag);
         });
     },
     toComment : function () {
         if(config.userMemo === false) return;
-        const iframe = document.querySelector<HTMLIFrameElement>('#dcs_iframe');
-        var root = pageContext.calltype == 'lists' && iframe?.contentWindow ? iframe.contentWindow.document : document;
+        const root = getCommentMemoRoot();
         qsa('.view_comment li[class^=ub-content]', root).forEach(function (comment) {
-            var writer = comment.querySelector('.ub-writer');
+            const writer = comment.querySelector('.ub-writer');
             if (!writer) return;
-            var ip = writer.getAttribute('data-ip');
-            if (!ip) return;
-            var match = filter.usermemo.ip.indexOf(ip);
-            if (match !== -1){
-                writer.setAttribute('title', ip);
-                const ipElement = writer.querySelector('.ip');
-                if (ipElement) ipElement.innerHTML = '('+filter.usermemo.tag[match]+')';
-            }
+            const ip = writer.getAttribute('data-ip');
+            const tag = findMemoTag(ip, filter.usermemo);
+            if (ip && tag) applyMemoTag(writer, ip, tag);
         });
     }
 };
