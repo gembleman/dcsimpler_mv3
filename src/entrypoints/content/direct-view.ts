@@ -13,7 +13,7 @@ export function closeDialog() {
 }
 
 export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
-    var dialog = document.querySelector('#dcs_dialog');
+    var dialog = document.querySelector<HTMLDialogElement>('#dcs_dialog');
     if(!url || !dialog || !dialogTemplate) return false;
     var innerStyle = '<style>html { overflow: hidden; } #container { margin-left : 1px !important; } .view_content_wrap { display : none !important; } .view_comment { width: 840px !important; } [id^=memo] { width : 630px !important; } .cmt_write_box.small [id^=memo] { width : 600px !important; } .view_bottom_btnbox { display : none !important; } .cmt_txtbox { width : 500px !important; } .usertxt.ub-word { width:inherit !important; } .ub-content[blackedUser~=qvz] { color:gray; background: #e4e4e4; } .ub-content[blackedUser~=qvz] td { color:gray; } .ub-content[blackedUser~=qvz] a { color:gray !important; } .pop_wrap.type3 { left : 19px !important; } div[id^=div-gpt] { display: none; } .wrap_inner { margin : 0 !important; } ::selection { background: #d7e8ff; color: #25282b; text-shadow: none; } red {color:#ff5442} blue {color:#4666ff} green {color:#00a500}</style>';
 
@@ -71,13 +71,13 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
             var key = normalizeKey(event);
 
             if(key === keyEnum.C && withoutCtrlKey && !onTextarea){
-                document.querySelector('#avoiding_c')?.focus();
+                document.querySelector<HTMLElement>('#avoiding_c')?.focus();
                 setTimeout(function () {
-                    iframeDocument.querySelector('textarea')?.focus();
+                    iframeDocument.querySelector<HTMLTextAreaElement>('textarea')?.focus();
                 },10);
             }
             else if(key === keyEnum.Q && withoutCtrlKey && !onTextarea) {
-                document.querySelector('#viewToggle')?.click();
+                document.querySelector<HTMLElement>('#viewToggle')?.click();
             }
             else if(key === keyEnum.ESC && withoutCtrlKey) {
                 closeDialog();
@@ -95,11 +95,11 @@ export function insertCommentIframe(dialogTemplate, url, timeout = 500) {
 
         var dialogCommentBadge = document.querySelector('.gall_comment');
         var numberOfcommentsFromDialog = dialogCommentBadge ? dialogCommentBadge.innerHTML.replace(/[^0-9]/g, '') : '0';
-        var commentCountElement = iframeDocument.querySelector('span[id^=comment]');
+        var commentCountElement = iframeDocument.querySelector<HTMLElement>('span[id^=comment]');
         var numberOfcommentsFromiFrame = commentCountElement ? commentCountElement.innerText.replace(/[^0-9]/g, '') : '0';
 
         if(numberOfcommentsFromDialog !== '0' && numberOfcommentsFromiFrame === '0') {
-            iframeDocument.querySelector('.btn_cmt_refresh')?.click();
+            iframeDocument.querySelector<HTMLElement>('.btn_cmt_refresh')?.click();
         }
     }
 
@@ -182,7 +182,7 @@ let openDialog = function(position, callback) {
     dialog.focus();
 
     delegate(body, 'click', '.gall_comment', function () {
-        var iframe = document.getElementById('dcs_iframe');
+        var iframe = document.getElementById('dcs_iframe') as HTMLIFrameElement | null;
         var focusCmt = iframe && iframe.contentWindow.document.querySelector('#focus_cmt');
         if (focusCmt) focusCmt.scrollIntoView();
     });
@@ -227,7 +227,7 @@ let requestArticle = async function (url, dialogTemplate = document.querySelecto
         let res = await fetching(url + 'view_content_wrap', ac);
 
         if(!res.ok) {
-            throw new Error (res.status);
+            throw new Error(String(res.status));
         }
         app.sendToBackground('view');
         let articleWrap = parseHtml(await res.text()).querySelector('.view_content_wrap');

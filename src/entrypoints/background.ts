@@ -12,6 +12,22 @@ const STAT_FLAGS = ['view', 'write', 'reply'];
 const GALL_BOARD_URL_REGEX =
   '^https://gall\\.dcinside\\.com/(?:board|(?:mgallery|mini|person)/+board)/(?:lists|view|write|modify)';
 
+interface AutoInsertImageData {
+  filename: string;
+  filetype: string;
+  filebyte: string;
+}
+
+function isAutoInsertImageData(value: unknown): value is AutoInsertImageData {
+  if (typeof value !== 'object' || value === null) return false;
+  const data = value as Partial<AutoInsertImageData>;
+  return (
+    typeof data.filename === 'string' &&
+    typeof data.filetype === 'string' &&
+    typeof data.filebyte === 'string'
+  );
+}
+
 // 프리프로세싱 CSS (구 preprocessing.*)
 const PREPROCESS_CSS = {
   upScale: () =>
@@ -66,7 +82,7 @@ async function autoInsertImage(details) {
 
   const { autoInsertImageData: data } =
     await chrome.storage.local.get('autoInsertImageData');
-  if (!data || !data.filename || !data.filetype || !data.filebyte) return;
+  if (!isAutoInsertImageData(data)) return;
 
   let injection;
   try {

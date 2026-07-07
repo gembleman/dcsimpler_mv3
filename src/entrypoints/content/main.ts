@@ -70,7 +70,7 @@ function bindCommandListener() {
         trigger(document.querySelector('#container'), 'click');
         trigger(document.querySelector('#subject'), 'mousedown');
         trigger(document.querySelector('form'), 'click');
-        document.querySelector('.btn_blue.btn_svc.write, .btn_blue.write')?.click();
+        document.querySelector<HTMLElement>('.btn_blue.btn_svc.write, .btn_blue.write')?.click();
     });
 }
 

@@ -14,7 +14,7 @@ export let contentBlock = {
         const tbody = document.querySelector('tbody');
         if (!tbody) return false;
         [ ...tbody.querySelectorAll('.ub-content') ].map(function (article) {
-            let [ ubWriter, ubWord ]  = [ article.querySelector('.ub-writer'), article.querySelector('.ub-word') ];
+            let [ ubWriter, ubWord ]  = [ article.querySelector('.ub-writer'), article.querySelector<HTMLElement>('.ub-word') ];
             if (!ubWriter || !ubWord) return false;
             let contentBlockReason = undefined;
             let writerIP, writerID, writerNickName, contentText;
@@ -48,12 +48,12 @@ export let contentBlock = {
     toComment : function (effect?: string, _legacy?: unknown) {
         let that = this;
         if (config.blacklist === false) return false;
-        const iframe = document.querySelector('#dcs_iframe');
+        const iframe = document.querySelector<HTMLIFrameElement>('#dcs_iframe');
         if (pageContext.calltype === 'lists' && !iframe) return false;
         let reference = pageContext.calltype === 'lists' ? iframe.contentWindow.document.body : document.body;
         if (!reference) return false;
         [ ...reference.querySelectorAll('.view_comment li[class^=ub-content]') ].map(function (comment) {
-            let [ ubWriter, ubWord ] = [ comment.querySelector('.ub-writer'), comment.querySelector('.ub-word') ];
+            let [ ubWriter, ubWord ] = [ comment.querySelector('.ub-writer'), comment.querySelector<HTMLElement>('.ub-word') ];
             if (!ubWriter || !ubWord) return false;
             let contentBlockReason = undefined;
             let writerIP, writerID, writerNickName, commentText;
@@ -108,7 +108,7 @@ export let contentMemo = {
     },
     toComment : function () {
         if(config.userMemo === false) return;
-        const iframe = document.querySelector('#dcs_iframe');
+        const iframe = document.querySelector<HTMLIFrameElement>('#dcs_iframe');
         var root = pageContext.calltype == 'lists' && iframe ? iframe.contentWindow.document : document;
         qsa('.view_comment li[class^=ub-content]', root).forEach(function (comment) {
             var writer = comment.querySelector('.ub-writer');

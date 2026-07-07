@@ -58,7 +58,7 @@ export let loadList = async function (requestURL?: string) {
         let res = await fetching(requestURL, lc);
         if(!res.ok) {
             manipulateDOM.setProgress(-1);
-            throw new Error(res.status);
+            throw new Error(String(res.status));
         }
 
         manipulateDOM.setProgress(1);

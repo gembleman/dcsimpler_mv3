@@ -28,19 +28,19 @@ export const postprocessing = {
         });
     },
     avoidServiceCode() {
-        document.querySelector('.write_infobox')?.focus();
-        document.querySelector('.write_infobox')?.click();
-        document.querySelector('#subject')?.focus();
-        document.querySelector('#subject')?.click();
-        document.querySelector('.write_infobox')?.focus();
-        document.querySelector('.write_infobox')?.click();
+        document.querySelector<HTMLElement>('.write_infobox')?.focus();
+        document.querySelector<HTMLElement>('.write_infobox')?.click();
+        document.querySelector<HTMLElement>('#subject')?.focus();
+        document.querySelector<HTMLElement>('#subject')?.click();
+        document.querySelector<HTMLElement>('.write_infobox')?.focus();
+        document.querySelector<HTMLElement>('.write_infobox')?.click();
         const subject = document.querySelector<HTMLElement>('#subject');
         subject?.focus();
         subject?.click();
         subject?.addEventListener('keydown', function (event) {
             if(normalizeKey(event) === keyEnum.TAB) {
                 event.preventDefault();
-                document.querySelector('#tx_canvas_wysiwyg')?.focus();
+                document.querySelector<HTMLElement>('#tx_canvas_wysiwyg')?.focus();
             }
         });
 

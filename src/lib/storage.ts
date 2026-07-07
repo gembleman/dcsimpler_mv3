@@ -1,6 +1,10 @@
 // chrome.storage.local 기반 저장 계층 (구 lsmm.js / localStorage 대체)
 import { defaultConfig, type AppConfig } from './default-config';
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 // 구버전에서 최근방문목록 셀렉터가 실제 요소와 맞지 않던(.visit_history → 실제 #visit_history)
 // 저장 설정을 교정한다. 사용자가 편집한 나머지 필터는 그대로 둔다.
 function migrateConfig(config: AppConfig): AppConfig {
@@ -13,7 +17,7 @@ function migrateConfig(config: AppConfig): AppConfig {
 
 export async function getConfig(): Promise<AppConfig> {
   const { config } = await chrome.storage.local.get('config');
-  return migrateConfig({ ...defaultConfig, ...(config ?? {}) });
+  return migrateConfig({ ...defaultConfig, ...(isObjectRecord(config) ? config : {}) });
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {

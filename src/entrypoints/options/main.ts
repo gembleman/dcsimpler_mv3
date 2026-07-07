@@ -4,14 +4,23 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import './style.css';
 import Chart from 'chart.js/auto';
 import { getConfig, saveConfig } from '@/lib/storage';
-import { groupByDay, groupByGall, clearHistory } from '@/lib/stats';
+import { groupByDay, groupByGall, clearHistory, isHistoryStore, type HistoryStore } from '@/lib/stats';
 import TLN from '@/lib/tln';
+import type { AppConfig } from '@/lib/default-config';
 
 const updateDescription = '업데이트되었습니다 변경사항을 확인해주세요';
 
-let config;
+let config: AppConfig;
 let version;
-let history = {};
+let history: HistoryStore = {};
+
+interface AutoInsertImageData {
+    filename?: string;
+}
+
+function isAutoInsertImageData(value: unknown): value is AutoInsertImageData {
+    return typeof value === 'object' && value !== null;
+}
 
 function qs(selector, root = document) {
     return root.querySelector(selector);
@@ -49,7 +58,7 @@ function trigger(element, eventName) {
 
 async function readHistory() {
     const { history: storedHistory } = await chrome.storage.local.get('history');
-    return storedHistory ?? {};
+    return isHistoryStore(storedHistory) ? storedHistory : {};
 }
 
 async function saveCurrentConfig() {
@@ -278,7 +287,8 @@ async function addUpdateNotification(innerText) {
     wrapper.addEventListener('click', async function (event) {
         wrapper.remove();
         await chrome.storage.local.set({ updateChk: false });
-        if( event.target.id !== 'close') qs('.item[index="5"]')?.click();
+        const target = event.target instanceof Element ? event.target : null;
+        if( target?.id !== 'close') qs('.item[index="5"]')?.click();
     });
 }
 
@@ -302,8 +312,9 @@ function growTextarea(elem) {
     if (!elem) return;
     const offset = elem.offsetHeight - elem.clientHeight;
     const resizeTextarea = function(element) {
-        const scrollLeft = window.pageXOffset || (document.documentElement || document.body.parentNode || document.body).scrollLeft;
-        const scrollTop  = window.pageYOffset || (document.documentElement || document.body.parentNode || document.body).scrollTop;
+        const scrollRoot = document.scrollingElement ?? document.documentElement ?? document.body;
+        const scrollLeft = window.pageXOffset || scrollRoot.scrollLeft;
+        const scrollTop  = window.pageYOffset || scrollRoot.scrollTop;
         element.style.height = 'auto';
         element.style.height = (element.scrollHeight + offset) + 'px';
         window.scrollTo(scrollLeft, scrollTop);
@@ -472,7 +483,7 @@ function bindOptionHandlers(charts) {
     });
 
     document.addEventListener('change', async function (event) {
-        if (!event.target.matches('.toggler')) return;
+        if (!(event.target instanceof HTMLInputElement) || !event.target.matches('.toggler')) return;
         const key = event.target.getAttribute('t');
         const value = event.target.checked;
 
@@ -481,7 +492,7 @@ function bindOptionHandlers(charts) {
 
         if(event.target.getAttribute('haveChildren') != null) {
             const childBox = event.target.closest('.box')?.nextElementSibling;
-            if (childBox) childBox.style.display = value ? '' : 'none';
+            if (childBox instanceof HTMLElement) childBox.style.display = value ? '' : 'none';
         }
     });
 
@@ -580,8 +591,10 @@ async function initOptions() {
         chrome.tabs.create({url:'chrome://extensions/shortcuts'});
     });
 
-    const { autoInsertImageData = {} } = await chrome.storage.local.get('autoInsertImageData');
-    qs('.image-name').innerHTML = autoInsertImageData.filename || '설정된 이미지 파일이 없습니다';
+    const { autoInsertImageData } = await chrome.storage.local.get('autoInsertImageData');
+    qs('.image-name').innerHTML = isAutoInsertImageData(autoInsertImageData) && autoInsertImageData.filename
+        ? autoInsertImageData.filename
+        : '설정된 이미지 파일이 없습니다';
 
     bindOptionHandlers(charts);
 }

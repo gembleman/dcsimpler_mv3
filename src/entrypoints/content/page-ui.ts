@@ -92,18 +92,19 @@ export const manipulateDOM = {
             '</div>';
 
         document.querySelector('.right_box')?.insertAdjacentHTML('afterbegin', frag);
-        qsa('.right_content').forEach((element) => element.style.display = rightPanelVisibility === 'show' ? 'block' : 'none');
+        qsa<HTMLElement>('.right_content').forEach((element) => element.style.display = rightPanelVisibility === 'show' ? 'block' : 'none');
 
         delegate(document, 'click', '#io-opt', function (evt) {
-            const slideMenu = document.querySelector('#opt-slideMenu');
+            const slideMenu = document.querySelector<HTMLElement>('#opt-slideMenu');
             if (slideMenu) slideMenu.style.display = slideMenu.style.display === 'block' ? 'none' : 'block';
-            switch (evt.target.id) {
+            const target = evt.target instanceof Element ? evt.target : null;
+            switch (target?.id) {
                 case 'login' : { const href = document.querySelector('.btn_top_loginout')?.getAttribute('href'); if (href) window.location.href = href; break; }
                 case 'config' : { chrome.runtime.sendMessage({flag: 'openConfig'}); break; }
             }
         });
         delegate(document, 'click', '#io-rptg', function () {
-            if( localStorage.io2 ) qsa('.right_content').forEach((element) => element.style.display = element.style.display === 'none' ? 'block' : 'none');
+            if( localStorage.io2 ) qsa<HTMLElement>('.right_content').forEach((element) => element.style.display = element.style.display === 'none' ? 'block' : 'none');
             if( localStorage.io2 === 'show' ) {
                 localStorage.io2 = 'hide';
                 document.querySelector('#io-rptg')?.setAttribute('t', 'show');
@@ -119,7 +120,7 @@ export const manipulateDOM = {
             if (!isNaN(refreshRate) && refreshRate > 0) {
                 this.classList.add('-running');
                 this.intervalID =  setInterval (function () {
-                    document.querySelector('.btn_normal')?.click();
+                    document.querySelector<HTMLElement>('.btn_normal')?.click();
                 }, refreshRate*1000);
             } else {
                 this.classList.remove('-running');
@@ -186,7 +187,7 @@ export const manipulateDOM = {
 
         let findDeleteButton = function (elem) {
             if (!elem?.id) return null;
-            return qsa('#visit_history .btn_visit_del, #visit_history_lyr .btn_visit_del').find(function (button) {
+            return qsa<HTMLElement>('#visit_history .btn_visit_del, #visit_history_lyr .btn_visit_del').find(function (button) {
                 return button.getAttribute('data-id') === elem.id
                     && (!elem.type || button.getAttribute('data-gtype') === elem.type);
             }) ?? null;
@@ -248,7 +249,7 @@ export const manipulateDOM = {
         };
 
         let visitHistoryClickListener = function (event) {
-            if (event.target.id !== 'dcs_closebox') return false;
+            if (!(event.target instanceof HTMLElement) || event.target.id !== 'dcs_closebox') return false;
             let index = event.target.parentElement.attributes.index.value;
             let removed = latelyGallery[index];
             latelyGallery.splice(index, 1);
