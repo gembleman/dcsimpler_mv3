@@ -31,5 +31,4 @@ node_modules/
 !README.md
 target_html/
 package-lock.json
-pnpm-lock.yaml
 .codebase-memory/
