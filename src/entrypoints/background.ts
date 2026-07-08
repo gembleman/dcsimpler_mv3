@@ -6,6 +6,7 @@
 // - 설치 시 alert → 옵션 페이지 열기로 대체, requestUpdateCheck 제거(웹스토어가 처리)
 import { getConfig, ensureConfig } from '@/lib/storage';
 import type { AppConfig } from '@/lib/default-config';
+import type { Browser } from '@wxt-dev/browser';
 import { pruneHistory, increaseStat } from '@/lib/stats';
 import { autoInsertImage } from '@/background/auto-image';
 import {
@@ -40,7 +41,7 @@ const PREPROCESS_CSS = {
 const PREPROCESS_CONFIG_KEYS = Object.keys(PREPROCESS_CSS) as PreprocessConfigKey[];
 
 export default defineBackground(() => {
-  chrome.runtime.onInstalled.addListener((details) => {
+  chrome.runtime.onInstalled.addListener((details: Browser.runtime.InstalledDetails) => {
     ensureConfig();
     if (details.reason === 'install') {
       // MV2에서는 설치 시 alert로 안내했으나 SW에서는 불가 → 옵션 페이지의 도움말로 대체
@@ -58,33 +59,39 @@ export default defineBackground(() => {
     chrome.runtime.openOptionsPage();
   });
 
-  chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-    if (isConfigRequestMessage(request)) {
-      getConfig().then(sendResponse);
-      return true; // async 응답
-    }
-    if (isOpenConfigMessage(request)) {
-      chrome.runtime.openOptionsPage();
+  chrome.runtime.onMessage.addListener(
+    (
+      request: unknown,
+      _sender: Browser.runtime.MessageSender,
+      sendResponse: (response?: unknown) => void,
+    ) => {
+      if (isConfigRequestMessage(request)) {
+        getConfig().then(sendResponse);
+        return true; // async 응답
+      }
+      if (isOpenConfigMessage(request)) {
+        chrome.runtime.openOptionsPage();
+        return false;
+      }
+      if (isStatRequestMessage(request)) {
+        increaseStat(request)
+          .then(() => {
+            const response: StatResponseMessage = { baz: 'success' };
+            sendResponse(response);
+          })
+          .catch((e) => {
+            console.log('Stat update failed.', e);
+            const response: StatResponseMessage = { baz: 'fail' };
+            sendResponse(response);
+          });
+        return true;
+      }
       return false;
-    }
-    if (isStatRequestMessage(request)) {
-      increaseStat(request)
-        .then(() => {
-          const response: StatResponseMessage = { baz: 'success' };
-          sendResponse(response);
-        })
-        .catch((e) => {
-          console.log('Stat update failed.', e);
-          const response: StatResponseMessage = { baz: 'fail' };
-          sendResponse(response);
-        });
-      return true;
-    }
-    return false;
-  });
+    },
+  );
 
   // Alt+S — 글 등록. MV3는 코드 문자열 주입이 불가하므로 content script에 위임
-  chrome.commands.onCommand.addListener(async (command) => {
+  chrome.commands.onCommand.addListener(async (command: string) => {
     if (command !== 'write') return;
     try {
       const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -106,7 +113,7 @@ export default defineBackground(() => {
 
   // 프리프로세싱 CSS 주입 (구 webNavigation.onCommitted + tabs.insertCSS)
   chrome.webNavigation.onCommitted.addListener(
-    async (details) => {
+    async (details: Browser.webNavigation.WebNavigationTransitionCallbackDetails) => {
       // 직계 자식 프레임(dcs_iframe)은 제외 — MV2 동작(parentFrameId !== 0) 유지
       if (details.parentFrameId === 0) return;
       const config = await getConfig();
@@ -129,7 +136,7 @@ export default defineBackground(() => {
 
   // 고정짤방 자동 삽입 (구 autoInsertImage)
   chrome.webNavigation.onDOMContentLoaded.addListener(
-    (details) => {
+    (details: Browser.webNavigation.WebNavigationFramedCallbackDetails) => {
       if (details.frameId !== 0) return;
       autoInsertImage(details).catch((e) => {
         console.log('Auto image insertion failed.', e);
