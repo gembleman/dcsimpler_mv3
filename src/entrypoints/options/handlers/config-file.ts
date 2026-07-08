@@ -1,11 +1,17 @@
 import type { AppConfig } from '@/lib/default-config';
+import type { VisitedGallery } from '@/lib/storage';
 import { delegate } from '@/lib/dom';
 import { normalizeConfig } from '@/lib/storage';
 import { downloadTextFile, importTextFile } from '../text-files';
 import { flashOk } from '../dom-effects';
+import { renderScopeSelect, setCurrentScope } from '../blacklist-scope';
 import { copyConfig, parseImportedConfig, syncConfigControls } from './shared';
 
-export function bindConfigFileHandlers(config: AppConfig, saveCurrentConfig: () => Promise<void>): void {
+export function bindConfigFileHandlers(
+    config: AppConfig,
+    saveCurrentConfig: () => Promise<void>,
+    visited: VisitedGallery[],
+): void {
     delegate<HTMLButtonElement>(document, 'click', '.saveText.config-export', function () {
         downloadTextFile('dcsimpler-config.json', JSON.stringify(normalizeConfig(config), null, 2), 'application/json;charset=utf-8');
     });
@@ -20,7 +26,10 @@ export function bindConfigFileHandlers(config: AppConfig, saveCurrentConfig: () 
             }
 
             copyConfig(config, importedConfig);
+            // 가져온 설정은 전역 스코프 기준으로 표시하고 갤러리 드롭다운을 다시 그린다.
+            setCurrentScope('');
             syncConfigControls(config);
+            renderScopeSelect(config, visited);
             await saveCurrentConfig();
             flashOk(button);
         }, '.json,application/json');

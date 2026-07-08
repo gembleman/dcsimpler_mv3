@@ -22,7 +22,7 @@ export default defineConfig({
     short_name: 'dcsimpler_mv3',
     description:
       '디시인사이드 갤질을 위한 다양한 부가기능을 제공하는 익스텐션입니다. (MV3로 마이그레이션)',
-    key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA248o78e3hTF2VYXtYqJHrMV22CrlVCgfSCCw6CahaeEh1C+ALeIbx9WwjHaAUInKwtiGzjmMXuaiRiSUPAqpjPnc4JWmiKDjAG3Z2TQMbpTwfqGaueneE+ZUaZwsOcCTsvBWa5o+nK7tKT/bRPReW8irIQSj66HQt+NGoZzn3nKJNfU0zF7xYTa4Mo3H6YGgSENCacsyBP7OHUWAyDpK1laJ50FajXb/gCFYjr1JClndvEwLDKx7QWiSh0dg0VE5Ai4hPTYpOuMFwPSbGwJZcJvSfBMwZExIO6tYIT4AEa7lzEFxcHUBygfaulTQOKBElOXKMJUSpLxYj62Ehr3T3wIDAQAB',
+    key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn6eBCDQsVf8MNTfQMzFux65Q9OS7cci8crLgWJpR/8zJ5RHT6WNQ2Ko/qwf5dlIwfhTxAzqOKXgHMzxFtds5zlgKw0fiAaaOymaivsyPA57g2hX3Eft61MjCAt2m9kTKOhyAyynNHDGRSQ1gul+8tIb5cK2PpK05B636ePM0cQN/iGmDTcUHuJ+V7coNfBJ47SABO79F/NuQe2lELGrNmtX69AXj7Yv1tBiOfDzAhyMa+q+hijkIhCQEVyvQUJeg/1yD2R/3bHWCJLBnVhzQ72gGl7pke+mvNBQ5pYUiMRFY+2LNJqgObD3PagaSNNxnKILuy9/B0FQ8Txu2UJOSkwIDAQAB",
     permissions: [
       'storage',
       'scripting',

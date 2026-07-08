@@ -15,6 +15,7 @@ export const booleanConfigKeys = [
     'userMemo',
     'autoInsertImage',
     'alignLeftContentWriter',
+    'showOuterButtons',
 ] as const satisfies readonly (keyof AppConfig)[];
 
 export type BooleanConfigKey = typeof booleanConfigKeys[number];

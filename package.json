@@ -2,7 +2,7 @@
   "name": "dcsimpler",
   "description": "디시인사이드 갤질을 위한 다양한 부가기능을 제공하는 익스텐션입니다.",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.1.1",
   "packageManager": "pnpm@11.3.0",
   "type": "module",
   "scripts": {

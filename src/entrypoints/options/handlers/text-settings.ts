@@ -1,6 +1,16 @@
 import type { AppConfig } from '@/lib/default-config';
+import type { VisitedGallery } from '@/lib/storage';
 import { delegate, qs, qsa } from '@/lib/dom';
 import { isBlacklistFilterKey, isBooleanConfigKey } from '../config-keys';
+import {
+    getCurrentScope,
+    getScopedFilter,
+    normalizeGalleryId,
+    pruneEmptyScope,
+    renderScopeSelect,
+    setCurrentScope,
+} from '../blacklist-scope';
+import { loadFilterIntoTextareas, resizeTextareaToContent } from '../sections';
 import {
     flashErr,
     flashOk,
@@ -56,7 +66,11 @@ export function bindMinimizeLayoutHandlers(config: AppConfig, saveCurrentConfig:
     });
 }
 
-export function bindBlacklistHandlers(config: AppConfig, saveCurrentConfig: () => Promise<void>): void {
+export function bindBlacklistHandlers(
+    config: AppConfig,
+    saveCurrentConfig: () => Promise<void>,
+    visited: VisitedGallery[],
+): void {
     delegate<HTMLInputElement>(document, 'click', 'input.saveText.blac', function () {
         qsa('.saveText.blac').forEach((button) => button.classList.remove('selected'));
         this.classList.add('selected');
@@ -64,6 +78,8 @@ export function bindBlacklistHandlers(config: AppConfig, saveCurrentConfig: () =
         const index = this.getAttribute('index');
         qsa('.smallbox.blacklist').forEach((box) => setDisplay(box, false));
         if (index) qsa('.smallbox.blacklist.'+index).forEach((box) => setDisplay(box, true));
+        // 방금 보이게 된 textarea는 숨겨져 있던 동안 높이가 축소됐을 수 있어 다시 맞춘다.
+        if (index) resizeTextareaToContent(qs<HTMLTextAreaElement>('textarea.blacklist.'+index));
     });
     qs('.saveText.blac.nickname')?.click();
 
@@ -76,13 +92,77 @@ export function bindBlacklistHandlers(config: AppConfig, saveCurrentConfig: () =
         const targets = getTextSaveTargets('.box.child.blacklist', textarea);
         if (!validateBlacklistValue(value, targets)) return;
 
-        config.blacklist_filter[d] = value;
+        const scope = getCurrentScope();
+        getScopedFilter(config)[d] = value;
+        // 갤러리 스코프에서 모든 필터가 비워지면 저장소에서 제거하고 드롭다운 표시(● 마커)를 갱신한다.
+        if (scope !== '') {
+            pruneEmptyScope(config, scope);
+            renderScopeSelect(config, visited);
+            const select = qs<HTMLSelectElement>('.blacklist-scope-select');
+            if (select) select.value = scope;
+        }
         await saveCurrentConfig();
         if (value === 'a^') flashOk(targets);
     });
 
     bindShiftEnterSave('textarea.blacklist', function (textarea) {
         return qs('.saveText.'+textarea.classList[1]+'.'+textarea.classList[2]);
+    });
+}
+
+/** 차단 적용 범위(전체/갤러리별) 전환 UI를 바인딩한다. */
+export function bindBlacklistScopeHandlers(
+    config: AppConfig,
+    saveCurrentConfig: () => Promise<void>,
+    visited: VisitedGallery[],
+): void {
+    const select = qs<HTMLSelectElement>('.blacklist-scope-select');
+    const input = qs<HTMLInputElement>('.blacklist-scope-input');
+    const removeButton = qs<HTMLButtonElement>('.blacklist-scope-remove');
+
+    renderScopeSelect(config, visited);
+    updateRemoveButton();
+
+    function updateRemoveButton(): void {
+        if (removeButton) setDisplay(removeButton, getCurrentScope() !== '');
+    }
+
+    // 현재 스코프의 필터를 textarea에 로드하고 삭제 버튼 표시를 갱신한다.
+    function applyScope(scope: string): void {
+        setCurrentScope(scope);
+        loadFilterIntoTextareas(getScopedFilter(config));
+        if (select) select.value = scope;
+        updateRemoveButton();
+    }
+
+    select?.addEventListener('change', function () {
+        applyScope(this.value);
+    });
+
+    delegate<HTMLElement>(document, 'click', '.blacklist-scope-add', async function () {
+        if (!input) return;
+        const gallId = normalizeGalleryId(input.value);
+        if (!gallId) {
+            flashErr(input);
+            return;
+        }
+        input.value = '';
+        // 필터가 없던 갤러리라면 빈 필터로 등록하고, 저장/드롭다운에 반영한다.
+        getScopedFilter(config, gallId);
+        await saveCurrentConfig();
+        renderScopeSelect(config, visited);
+        applyScope(gallId);
+        flashOk(input);
+    });
+
+    delegate<HTMLElement>(document, 'click', '.blacklist-scope-remove', async function () {
+        const scope = getCurrentScope();
+        if (scope === '') return;
+        delete config.blacklist_filter_by_gallery[scope];
+        await saveCurrentConfig();
+        renderScopeSelect(config, visited);
+        applyScope('');
+        flashOk(this);
     });
 }
 

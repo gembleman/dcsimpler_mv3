@@ -2,6 +2,7 @@ import { insertAfter } from './common';
 import { qsa } from './dom';
 import { config } from './state';
 import { isObjectRecord } from '../../lib/type-guards';
+import { mergeVisitedGalleries } from '../../lib/storage';
 
 interface GalleryItem {
     id: string;
@@ -76,6 +77,18 @@ function readLatelyGallery() {
     return normalizeGalleryItems(readStoredLatelyGallery().concat(readDomLatelyGallery()));
 }
 
+// 방문 갤러리 목록을 옵션 페이지에서 쓸 수 있도록 chrome.storage에 미러링한다.
+// 사이트 localStorage(lately_gallery)는 확장 컨텍스트에서 접근 불가하기 때문이다.
+function mirrorVisitedGalleries(items: GalleryItem[]) {
+    const galleries = items
+        .filter((item) => item.id && item.name)
+        .map((item) => ({ id: item.id, name: item.name }));
+    if (galleries.length === 0) return;
+    void mergeVisitedGalleries(galleries).catch(function () {
+        /* storage 접근 실패 시 무시 */
+    });
+}
+
 function findDeleteButton(elem: GalleryItem) {
     if (!elem?.id) return null;
     return qsa<HTMLElement>('#visit_history .btn_visit_del, #visit_history_lyr .btn_visit_del').find(function (button) {
@@ -119,6 +132,7 @@ export function mountVisitHistory() {
 
     function mount() {
         latelyGallery = readLatelyGallery();
+        mirrorVisitedGalleries(latelyGallery);
         const mountTarget = findMountTarget();
         if (!mountTarget) return false;
         document.querySelector('#dcs_visit_history')?.remove();

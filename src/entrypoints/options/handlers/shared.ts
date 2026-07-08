@@ -1,4 +1,5 @@
 import type { AppConfig } from '@/lib/default-config';
+import type { VisitedGallery } from '@/lib/storage';
 import { qs, qsa } from '@/lib/dom';
 import { normalizeConfig } from '@/lib/storage';
 import { isObjectRecord } from '@/lib/type-guards';
@@ -9,6 +10,7 @@ import type { OptionsCharts } from '../types';
 export type BindOptionHandlersOptions = {
     config: AppConfig;
     charts: OptionsCharts;
+    visitedGalleries: VisitedGallery[];
     saveCurrentConfig: () => Promise<void>;
 };
 
@@ -53,6 +55,10 @@ export function copyConfig(target: AppConfig, source: AppConfig): void {
     for (const key of booleanConfigKeys) target[key] = source[key];
     for (const key of stringConfigKeys) target[key] = source[key];
     for (const key of blacklistKeys) target.blacklist_filter[key] = source.blacklist_filter[key];
+    target.blacklist_filter_by_gallery = {};
+    for (const [gallId, filter] of Object.entries(source.blacklist_filter_by_gallery)) {
+        target.blacklist_filter_by_gallery[gallId] = { ...filter };
+    }
 }
 
 export function syncConfigControls(config: AppConfig): void {

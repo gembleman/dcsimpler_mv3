@@ -2,7 +2,7 @@ import { exitMain } from './common';
 import { createPageContext, setPageContext } from './context';
 import { trigger } from './dom';
 import { loadArticleViaDialog } from './direct-view';
-import { contentBlock, contentMemo } from './filters';
+import { compileBlacklistForGallery, contentMemo } from './filters';
 import { loadList, setListLoaderDependencies } from './list-loader';
 import { app } from './messaging';
 import { manipulateDOM, setPageUiDependencies } from './page-ui';
@@ -38,7 +38,7 @@ function main() {
 
     const configReady = app.requestConfig().then(function (data) {
         setConfig(data);
-        filter.blacklist = contentBlock.convert(data.blacklist_filter);
+        filter.blacklist = compileBlacklistForGallery(data, context.query.id);
         filter.usermemo = contentMemo.convert(data.userMemo_filter);
     }).catch(function (error) {
         console.warn('Failed to load DCSimpler config.', error);

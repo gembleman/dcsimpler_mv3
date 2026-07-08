@@ -5,6 +5,7 @@ import type { BindOptionHandlersOptions } from './handlers/shared';
 import { bindStatsHandlers } from './handlers/stats';
 import {
     bindBlacklistHandlers,
+    bindBlacklistScopeHandlers,
     bindConfigToggleHandlers,
     bindMinimizeLayoutHandlers,
     bindTextFileHandlers,
@@ -14,10 +15,11 @@ import {
 export function bindOptionHandlers(options: BindOptionHandlersOptions): void {
     bindMenuHandlers();
     bindMinimizeLayoutHandlers(options.config, options.saveCurrentConfig);
-    bindBlacklistHandlers(options.config, options.saveCurrentConfig);
+    bindBlacklistHandlers(options.config, options.saveCurrentConfig, options.visitedGalleries);
+    bindBlacklistScopeHandlers(options.config, options.saveCurrentConfig, options.visitedGalleries);
     bindUserMemoHandlers(options.config, options.saveCurrentConfig);
     bindTextFileHandlers();
-    bindConfigFileHandlers(options.config, options.saveCurrentConfig);
+    bindConfigFileHandlers(options.config, options.saveCurrentConfig, options.visitedGalleries);
     bindConfigToggleHandlers(options.config, options.saveCurrentConfig);
     bindImageUploadHandlers();
     bindStatsHandlers(options.charts);

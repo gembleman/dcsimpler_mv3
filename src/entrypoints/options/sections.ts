@@ -1,24 +1,25 @@
-import type { AppConfig, BlacklistFilterKey } from '@/lib/default-config';
+import type { AppConfig, BlacklistFilter, BlacklistFilterKey } from '@/lib/default-config';
 import TLN from '@/lib/tln';
 import { qs, qsa } from '@/lib/dom';
 import { blacklistKeys, isBooleanConfigKey } from './config-keys';
-import { setText, setTextareaValue } from './dom-effects';
+import { setTextareaValue } from './dom-effects';
+import { getScopedFilter } from './blacklist-scope';
+
+function filterValueToText(value: string): string {
+    return value === 'a^' ? '' : value.replace(/\|/g, '\r\n');
+}
+
+/** 주어진 필터 값을 4개 textarea에 채운다. 스코프 전환 시 재사용된다. */
+export function loadFilterIntoTextareas(filter: BlacklistFilter): void {
+    setTextareaValue('.editText.blacklist.id', filterValueToText(filter.id));
+    setTextareaValue('.editText.blacklist.ip', filterValueToText(filter.ip));
+    setTextareaValue('.editText.blacklist.nickname', filterValueToText(filter.nickname));
+    setTextareaValue('.editText.blacklist.keyword', filterValueToText(filter.keyword));
+    qsa<HTMLTextAreaElement>('.editText.blacklist').forEach(resizeTextareaToContent);
+}
 
 export function initBlacklist(config: AppConfig): void {
-    let id = config.blacklist_filter.id;
-    let ip = config.blacklist_filter.ip;
-    let nickname = config.blacklist_filter.nickname;
-    let keyword = config.blacklist_filter.keyword;
-
-    ip = ip == 'a^'? '' : ip.replace(/\|/g,'\r\n');
-    id = id == 'a^'? '' : id.replace(/\|/g,'\r\n');
-    nickname = nickname == 'a^'? '' : nickname.replace(/\|/g,'\r\n');
-    keyword = keyword == 'a^'? '' : keyword.replace(/\|/g,'\r\n');
-
-    setTextareaValue('.editText.blacklist.id', id);
-    setTextareaValue('.editText.blacklist.ip', ip);
-    setTextareaValue('.editText.blacklist.nickname', nickname);
-    setTextareaValue('.editText.blacklist.keyword', keyword);
+    loadFilterIntoTextareas(getScopedFilter(config));
 
     TLN.append_line_numbers('tln-blacklist-id');
     TLN.append_line_numbers('tln-blacklist-ip');
@@ -85,13 +86,6 @@ export async function addUpdateNotification(version: string, innerText: string):
     });
 }
 
-export function addFootprint(version: string): void {
-    const footprint = document.createElement('div');
-    footprint.id = 'footPrint';
-    footprint.textContent = 'dcsimpler | ' + version;
-    document.body.append(footprint);
-}
-
 export function addConfigFileControls(): void {
     const container = qs('.menu-container[index="0"]');
     if (!container || qs('.config-file-controls', container)) return;
@@ -136,21 +130,26 @@ export async function loadUpdatelog(): Promise<void> {
     }
 }
 
+export function resizeTextareaToContent(elem: HTMLTextAreaElement | null): void {
+    if (!elem) return;
+    // 숨겨진(display:none) 요소는 scrollHeight가 0이라 높이가 0px로 축소된다.
+    // 화면에 보일 때(탭 전환 시점 등)만 리사이즈해 잘림 버그를 막는다.
+    if (elem.offsetParent === null) return;
+    const offset = elem.offsetHeight - elem.clientHeight;
+    const scrollRoot = document.scrollingElement ?? document.documentElement ?? document.body;
+    const scrollLeft = window.pageXOffset || scrollRoot.scrollLeft;
+    const scrollTop  = window.pageYOffset || scrollRoot.scrollTop;
+    elem.style.height = 'auto';
+    elem.style.height = (elem.scrollHeight + offset) + 'px';
+    window.scrollTo(scrollLeft, scrollTop);
+}
+
 export function growTextarea(elem: HTMLTextAreaElement | null): void {
     if (!elem) return;
-    const offset = elem.offsetHeight - elem.clientHeight;
-    const resizeTextarea = function(element: HTMLTextAreaElement): void {
-        const scrollRoot = document.scrollingElement ?? document.documentElement ?? document.body;
-        const scrollLeft = window.pageXOffset || scrollRoot.scrollLeft;
-        const scrollTop  = window.pageYOffset || scrollRoot.scrollTop;
-        element.style.height = 'auto';
-        element.style.height = (element.scrollHeight + offset) + 'px';
-        window.scrollTo(scrollLeft, scrollTop);
-    };
     elem.addEventListener('input', function() {
-        resizeTextarea(elem);
+        resizeTextareaToContent(elem);
     });
-    resizeTextarea(elem);
+    resizeTextareaToContent(elem);
 }
 
 export function testfield(config: AppConfig, obj: Record<BlacklistFilterKey, HTMLElement | null>): void {

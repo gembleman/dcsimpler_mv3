@@ -505,21 +505,6 @@ fld { /* set font blue */
 }
 
 
-#footPrint {
-    font-size: 20px;
-    bottom: 6px;
-    right: 12px;
-    padding: 3px 0 0 0;
-    font-family: Source Sans Pro;
-    font-weight: 700;
-    text-align: center;
-    margin-top: -4px;
-    margin-bottom: 0px;
-    position: fixed;
-    color: rgba(0, 0, 0, 0.08);
-    z-index: -999;
-}
-
 /* lib image */
 .libSource{
     display: flex;

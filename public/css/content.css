@@ -130,6 +130,12 @@ html {
 .ub-content[blackedUser~='qvz'] a {
     color:gray !important;
 }
+/* 제목 키워드로 차단된 게시물에서, 걸린 키워드를 빨간색으로 강조 */
+.ub-content[blackedUser~='qvz'] .dcs-blocked-keyword,
+.ub-content[blackedUser~='qvz'] a .dcs-blocked-keyword {
+    color:#e02d2d !important;
+    font-weight:bold;
+}
 
 /* button */
 .external-button {
@@ -376,10 +382,10 @@ img[blur=n] {
     margin-left: -2px;
 }
 #dcs_nav > .nav-node {
-    flex: 1;
+    flex: 0 0 auto;
     position: relative;
     text-align: center;
-    width: 37px;
+    width: 24px;
     cursor: pointer;
     z-index: 99;
 }
@@ -393,7 +399,6 @@ img[blur=n] {
     fill:currentColor;
 }
 #dcs_nav > .nav-node:first-child {
-    flex: 1;
     text-align: center;
 }
 #dcs_nav > .nav-node span {
@@ -477,7 +482,7 @@ img[blur=n] {
     background-color: #903c3c;
 }
 #dcs_nav > #io-autoRefresh > .icon:hover {
-    filter:brightness(130%);
+    filter: brightness(130%);
 }
 #dcs_nav > #io-eye > .icon {
     width: 100%;
@@ -486,15 +491,12 @@ img[blur=n] {
     mask: url("chrome-extension://__MSG_@@extension_id__/images/eyeSlash.svg") no-repeat center center;
     background-color: #3c4790;
 }
-#dcs_nav > #io-eye[class~=on] > .icon {
-    width: 100%;
-    height: 100%;
+#dcs_nav > #io-eye.on > .icon {
     -webkit-mask: url("chrome-extension://__MSG_@@extension_id__/images/eyeOn.svg") no-repeat center center;
     mask: url("chrome-extension://__MSG_@@extension_id__/images/eyeOn.svg") no-repeat center center;
-    background-color: #3c4790;
 }
 #dcs_nav > #io-eye > .icon:hover {
-    filter:brightness(130%);
+    filter: brightness(130%);
 }
 #dcs_nav > #io-opt > .icon {
     width: 100%;

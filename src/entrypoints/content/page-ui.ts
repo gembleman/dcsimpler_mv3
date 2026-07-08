@@ -2,7 +2,6 @@ import { pageContext } from './context';
 import { delegate, qsa } from './dom';
 import { contentBlock, contentMemo } from './filters';
 import { bindHotkeys } from './hotkeys';
-import type { OpenConfigMessage } from '../../lib/messages';
 import { observeCommentMutations } from './comment-observer';
 import { mountImageRefreshButton, mountNavigator, mountOuterButtons } from './page-ui-controls';
 import { mountVisitHistory } from './page-ui-visit-history';
@@ -58,10 +57,6 @@ export const manipulateDOM = {
         });
 
         delegate(document, 'click', '.btn_normal, .btn_recommend, .btn_notice', arraytabListener);
-        delegate(document, 'click', '.btn_config', function () {
-            const message: OpenConfigMessage = { flag: 'openConfig' };
-            chrome.runtime.sendMessage(message);
-        });
 
         function arraytabListener (this: HTMLElement, event: Event) {
             const className = this.classList[0];
@@ -84,7 +79,6 @@ export const manipulateDOM = {
                 createArrayTabButton('btn_normal', '전체글', !isExceptionMode, moveTarget),
                 createArrayTabButton('btn_recommend', '개념글', exceptionMode === 'recommend', moveTarget),
                 createArrayTabButton('btn_notice', '공지', exceptionMode === 'notice', moveTarget),
-                createArrayTabButton('btn_config', '설정', false),
             );
             return fragment;
         }

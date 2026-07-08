@@ -71,3 +71,45 @@
 .dcs-shake {
     animation: dcs-shake 0.45s ease-in-out, dcs-flash-err 1s ease-out;
 }
+
+.smallbox.blacklist-scope {
+    display: block;
+}
+
+.scope-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.blacklist-scope-select,
+.blacklist-scope-input {
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.blacklist-scope-select {
+    min-width: 220px;
+    background: #fff;
+}
+
+.blacklist-scope-input {
+    flex: 1 1 200px;
+    min-width: 160px;
+}
+
+.saveText.blacklist-scope-add,
+.saveText.blacklist-scope-remove {
+    height: 36px;
+}
+
+.saveText.blacklist-scope-remove {
+    background: #d9534f;
+    color: #fff;
+}

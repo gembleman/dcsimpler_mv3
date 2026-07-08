@@ -2,7 +2,7 @@ import '@fontsource/noto-sans-kr/korean-100.css';
 import '@fontsource/noto-sans-kr/korean-300.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import './style.css';
-import { getConfig, saveConfig } from '@/lib/storage';
+import { getConfig, getVisitedGalleries, saveConfig } from '@/lib/storage';
 import type { AppConfig } from '@/lib/default-config';
 import { qs } from '@/lib/dom';
 import { createOptionsCharts, readHistory } from './charts';
@@ -10,7 +10,6 @@ import { setText } from './dom-effects';
 import { bindOptionHandlers } from './handlers';
 import { isAutoInsertImageData } from './image-data';
 import {
-    addFootprint,
     addConfigFileControls,
     addUpdateNotification,
     initBlacklist,
@@ -32,6 +31,7 @@ async function saveCurrentConfig(): Promise<void> {
 async function initOptions(): Promise<void> {
     config = await getConfig();
     const history = await readHistory();
+    const visitedGalleries = await getVisitedGalleries();
     version = chrome.runtime.getManifest().version;
 
     const bg = qs('#bg');
@@ -48,7 +48,6 @@ async function initOptions(): Promise<void> {
     initUsermemo(config);
     initBlacklist(config);
     initBootStrapButton(config);
-    addFootprint(version);
     addConfigFileControls();
     loadUpdatelog();
 
@@ -76,6 +75,7 @@ async function initOptions(): Promise<void> {
     bindOptionHandlers({
         config,
         charts,
+        visitedGalleries,
         saveCurrentConfig,
     });
 }
