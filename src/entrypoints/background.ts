@@ -6,7 +6,6 @@
 // - 설치 시 alert → 옵션 페이지 열기로 대체, requestUpdateCheck 제거(웹스토어가 처리)
 import { getConfig, ensureConfig } from '@/lib/storage';
 import type { AppConfig } from '@/lib/default-config';
-import type { Browser } from '@wxt-dev/browser';
 import { pruneHistory, increaseStat } from '@/lib/stats';
 import { autoInsertImage } from '@/background/auto-image';
 import {
@@ -26,6 +25,21 @@ type PreprocessConfigKey =
   | 'blurImage'
   | 'alignLeftContentWriter';
 
+type RuntimeInstalledDetails = {
+  reason: string;
+};
+
+type WebNavigationCommittedDetails = {
+  parentFrameId: number;
+  tabId: number;
+  frameId: number;
+};
+
+type WebNavigationFrameDetails = {
+  frameId: number;
+  tabId: number;
+};
+
 // 프리프로세싱 CSS (구 preprocessing.*)
 const PREPROCESS_CSS = {
   upScale: (_config: AppConfig) =>
@@ -41,7 +55,7 @@ const PREPROCESS_CSS = {
 const PREPROCESS_CONFIG_KEYS = Object.keys(PREPROCESS_CSS) as PreprocessConfigKey[];
 
 export default defineBackground(() => {
-  chrome.runtime.onInstalled.addListener((details: Browser.runtime.InstalledDetails) => {
+  chrome.runtime.onInstalled.addListener((details: RuntimeInstalledDetails) => {
     ensureConfig();
     if (details.reason === 'install') {
       // MV2에서는 설치 시 alert로 안내했으나 SW에서는 불가 → 옵션 페이지의 도움말로 대체
@@ -62,7 +76,7 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener(
     (
       request: unknown,
-      _sender: Browser.runtime.MessageSender,
+      _sender: unknown,
       sendResponse: (response?: unknown) => void,
     ) => {
       if (isConfigRequestMessage(request)) {
@@ -113,7 +127,7 @@ export default defineBackground(() => {
 
   // 프리프로세싱 CSS 주입 (구 webNavigation.onCommitted + tabs.insertCSS)
   chrome.webNavigation.onCommitted.addListener(
-    async (details: Browser.webNavigation.WebNavigationTransitionCallbackDetails) => {
+    async (details: WebNavigationCommittedDetails) => {
       // 직계 자식 프레임(dcs_iframe)은 제외 — MV2 동작(parentFrameId !== 0) 유지
       if (details.parentFrameId === 0) return;
       const config = await getConfig();
@@ -136,7 +150,7 @@ export default defineBackground(() => {
 
   // 고정짤방 자동 삽입 (구 autoInsertImage)
   chrome.webNavigation.onDOMContentLoaded.addListener(
-    (details: Browser.webNavigation.WebNavigationFramedCallbackDetails) => {
+    (details: WebNavigationFrameDetails) => {
       if (details.frameId !== 0) return;
       autoInsertImage(details).catch((e) => {
         console.log('Auto image insertion failed.', e);
